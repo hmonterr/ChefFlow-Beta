@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Global Helper Functions
+    // ===============================================================
+    
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == "hmonterr@gmail.com" && request.auth.token.email_verified == true; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // ===============================================================
+    // Entity Validations
+    // ===============================================================
+
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['id', 'title', 'isActive', 'multiplier', 'userId']) &&
+             data.keys().size() <= 5 &&
+             isValidId(data.id) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.isActive is bool &&
+             data.multiplier is number && data.multiplier >= 0 &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidIngredient(data) {
+      return data.keys().hasAll(['id', 'recipeId', 'name', 'quantity', 'unit', 'category', 'checked', 'userId']) &&
+             data.keys().size() <= 17 &&
+             isValidId(data.id) &&
+             data.recipeId is string && data.recipeId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.quantity is number &&
+             data.unit is string && data.unit.size() <= 50 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.checked is bool &&
+             data.userId == request.auth.uid &&
+             (data.get('isManual', true) is bool) &&
+             (data.get('mpuQuantity', 0) is number) &&
+             (data.get('mpuUnit', '') is string) &&
+             (data.get('originalQuantity', 0) is number) &&
+             (data.get('originalUnit', '') is string) &&
+             (data.get('lineage', []) is list) &&
+             (data.get('hideQuantity', false) is bool) &&
+             (data.get('displayString', '') is string) &&
+             (data.get('displayOverride', '') is string);
+    }
+
+    function isValidLibraryRecipe(data) {
+      return data.keys().hasAll(['id', 'title', 'ingredients', 'userId']) &&
+             data.keys().size() <= 6 &&
+             isValidId(data.id) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.ingredients is list &&
+             data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /recipes/{recipeId} {
+      allow read, list: if isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidId(recipeId) && isValidRecipe(incoming());
+      allow update: if isOwner(existing().userId) && isValidRecipe(incoming()) && (
+        // Action: Toggle Active
+        incoming().diff(existing()).affectedKeys().hasOnly(['isActive']) ||
+        // Action: Edit Recipe
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'multiplier'])
+      );
+      allow delete: if isOwner(existing().userId);
+    }
+
+    match /ingredients/{ingredientId} {
+      allow read, list: if isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidId(ingredientId) && isValidIngredient(incoming());
+      allow update: if isOwner(existing().userId) && isValidIngredient(incoming()) && (
+        // Action: Check/Uncheck
+        incoming().diff(existing()).affectedKeys().hasOnly(['checked']) ||
+        // Action: Re-categorize (Kanban drag)
+        incoming().diff(existing()).affectedKeys().hasOnly(['category']) ||
+        // Action: General Edit / Merge / Quantization Update
+        // Identity fields (id, recipeId, userId) remain strictly immutable.
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'quantity', 'unit', 'category', 'checked', 
+          'isManual', 'mpuQuantity', 'mpuUnit', 'originalQuantity', 
+          'originalUnit', 'lineage', 'hideQuantity', 'displayString', 
+          'displayOverride'
+        ])
+      );
+      allow delete: if isOwner(existing().userId);
+    }
+
+    match /library_recipes/{recipeId} {
+      allow read, list: if isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidId(recipeId) && isValidLibraryRecipe(incoming());
+      allow update: if isOwner(existing().userId) && isValidLibraryRecipe(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'ingredients'])
+      );
+      allow delete: if isOwner(existing().userId);
+    }
+  }
+}
