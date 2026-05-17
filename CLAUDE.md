@@ -2,6 +2,34 @@
 
 Project-level instructions for Claude Code sessions in this repo.
 
+## ChefFlow Session Init (mandatory — run at the start of every session)
+
+At session start, before any task, run these three reads **in parallel**. Do not ask the user if you should — just do it.
+
+```
+Read dashboard/index.html                                         # agent status + roadmap
+Notion fetch 34a8323a-3222-80a6-8406-fbc811b4d0e3               # [LIVE] ChefFlow Manifest
+Notion fetch 1bae33c60e91414aa2355d4c7628be29 (Bug Vault DB)     # open bugs
+```
+
+After reading, output a one-block summary:
+- **Version** — from manifest (e.g. v126)
+- **Agents** — status pill for each (Live / Setup / Retired)
+- **Open bugs** — count + any P0/P1 names
+- **Roadmap** — which week is active, what's checked vs unchecked
+
+This replaces the generic global session-init question for ChefFlow sessions. Still confirm the project directory per global CLAUDE.md, but skip "what are we working on?" — the summary answers it.
+
+### Notion IDs (hardcoded — do not look these up, use as-is)
+
+| Resource | Notion ID |
+|---|---|
+| [LIVE] ChefFlow Manifest | `34a8323a-3222-80a6-8406-fbc811b4d0e3` |
+| Bug Vault DB | `1bae33c60e91414aa2355d4c7628be29` |
+| Task Queue (Feature Ledger) | `1057d26d826e440684b5b0867ddc0fd7` |
+| Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
+| ChefFlow HQ | `3618323a-3222-8194-ba96-d96db8502a30` |
+
 ## Stack context
 
 Vite + React + TypeScript app (currently v126). Firebase backend (Firestore + Auth, rules in `firestore.rules`). Multi-agent runtime in `chefflow-ops/src`. Notion integration (Bug Vault / Task Queue / Ops Log) and Discord bot with strict tone + safety rails. Local vector DB at `ruvector.db`.
