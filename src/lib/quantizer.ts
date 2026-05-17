@@ -186,6 +186,9 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     return {
       quantity: 1,
       unit: 'bunch',
+      mpuQuantity: 1,
+      mpuUnit: 'bunch',
+      category: 'Produce',
       displayString: formatDisplay(1, 'bunch'),
       name: cleanedName
     };
