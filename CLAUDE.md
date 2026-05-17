@@ -29,6 +29,7 @@ This replaces the generic global session-init question for ChefFlow sessions. St
 | Task Queue (Feature Ledger) | `1057d26d826e440684b5b0867ddc0fd7` |
 | Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
 | ChefFlow HQ | `3618323a-3222-8194-ba96-d96db8502a30` |
+| Prompt Log DB (a5) | `6e3238da-8759-4bd8-8bd3-58c9bdd19998` |
 
 ## Stack context
 
