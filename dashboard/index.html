@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChefFlow — Agentic Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* Pastel light — default. Warm cream surfaces, soft accents, low contrast. */
+  :root,
+  [data-theme="light"] {
+    --orange: #E89765;
+    --orange-soft: #F2B68F;
+    --orange-dim: rgba(232,151,101,0.14);
+    --orange-glow: rgba(232,151,101,0.22);
+
+    --bg: #FAF6EF;
+    --surface: #FFFDF9;
+    --surface2: #F1ECE2;
+    --border: rgba(60,45,30,0.09);
+    --border-strong: rgba(60,45,30,0.16);
+    --text: #000000;
+    --muted: rgba(0,0,0,0.55);
+    --code-bg: rgba(0,0,0,0.05);
+
+    --red: #D98A91;
+    --red-dim: rgba(217,138,145,0.16);
+    --red-strong: #C6727A;
+
+    --green: #8FB89C;
+    --green-dim: rgba(143,184,156,0.18);
+
+    --yellow: #D6B675;
+    --yellow-dim: rgba(214,182,117,0.18);
+
+    --blue: #9BA5DC;
+    --blue-dim: rgba(155,165,220,0.18);
+
+    --purple: #B89BD4;
+    --purple-dim: rgba(184,155,212,0.18);
+
+    --grey: #A89E92;
+    --grey-dim: rgba(168,158,146,0.16);
+  }
+
+  /* Pastel dark — warm dark, not deep black. Same hues, softer dims. */
+  [data-theme="dark"] {
+    --orange: #E89765;
+    --orange-soft: #F2B68F;
+    --orange-dim: rgba(232,151,101,0.18);
+    --orange-glow: rgba(232,151,101,0.28);
+
+    --bg: #211C16;
+    --surface: #2B2620;
+    --surface2: #342E27;
+    --border: rgba(245,233,215,0.07);
+    --border-strong: rgba(245,233,215,0.14);
+    --text: #ECE3D2;
+    --muted: rgba(236,227,210,0.52);
+    --code-bg: rgba(245,233,215,0.04);
+
+    --red: #E29CA2;
+    --red-dim: rgba(226,156,162,0.18);
+    --red-strong: #D88087;
+
+    --green: #9CC4A8;
+    --green-dim: rgba(156,196,168,0.18);
+
+    --yellow: #E0C385;
+    --yellow-dim: rgba(224,195,133,0.18);
+
+    --blue: #A8B2E2;
+    --blue-dim: rgba(168,178,226,0.18);
+
+    --purple: #C5A9DE;
+    --purple-dim: rgba(197,169,222,0.18);
+
+    --grey: #B5ABA0;
+    --grey-dim: rgba(181,171,160,0.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background 200ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+  [data-theme="light"] body::before { opacity: 0.15; }
+
+  /* MIGRATION BANNER */
+  .migration-banner {
+    background: linear-gradient(90deg, var(--orange-dim), transparent 80%);
+    border-bottom: 1px solid var(--orange-glow);
+    padding: 10px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .migration-banner.hidden { display: none; }
+  .migration-banner .mb-icon { font-size: 16px; }
+  .migration-banner .mb-text { flex: 1; line-height: 1.5; }
+  .migration-banner .mb-text strong { color: var(--orange); font-family: 'Inter', sans-serif; font-weight: 700; }
+  .migration-banner .mb-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .migration-banner .mb-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 5px 11px;
+    border-radius: 6px;
+    border: 1px solid var(--orange-glow);
+    background: transparent;
+    color: var(--orange);
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-decoration: none;
+    display: inline-block;
+  }
+  .migration-banner .mb-btn:hover { background: var(--orange-dim); }
+  .migration-banner .mb-btn.dismiss { color: var(--muted); border-color: var(--border); }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    backdrop-filter: blur(20px);
+    z-index: 100;
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--orange);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    color: white;
+    box-shadow: 0 0 12px var(--orange-glow);
+  }
+
+  .logo-text {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+  .logo-text span { color: var(--orange); }
+
+  .header-meta { display: flex; align-items: center; gap: 12px; }
+
+  .version-pill {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    background: var(--orange-dim);
+    color: var(--orange);
+    border: 1px solid var(--orange-glow);
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  .status-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .pulse-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 3px var(--green);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* THEME TOGGLE */
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px;
+  }
+  .theme-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    width: 26px;
+    height: 22px;
+    border-radius: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .theme-toggle button.active {
+    background: var(--orange);
+    color: white;
+  }
+
+  .grid-main {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 70px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 70px;
+    height: calc(100vh - 70px);
+    overflow-y: auto;
+  }
+
+  .sidebar-section { padding: 0 20px 24px; }
+
+  .sidebar-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-bottom: 2px;
+    text-decoration: none;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange-glow); }
+
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+
+  .nav-badge {
+    margin-left: auto;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--red-dim);
+    color: var(--red);
+    font-weight: 500;
+  }
+  .nav-badge.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .nav-badge.green { background: var(--green-dim); color: var(--green); }
+  .nav-badge.orange { background: var(--orange-dim); color: var(--orange); }
+  .nav-badge.purple { background: var(--purple-dim); color: var(--purple); }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 20px 20px;
+  }
+
+  /* MAIN CONTENT */
+  .main { padding: 28px 32px; overflow-y: auto; }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .section-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.5px;
+  }
+
+  .section-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* AGENT CARDS */
+  .agents-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .agent-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 200ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .agent-card:hover { border-color: var(--border-strong); }
+  .agent-card.retired { opacity: 0.55; }
+  .agent-card.retired:hover { opacity: 0.78; border-color: var(--border); }
+
+  .agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .agent-card.agent-1::before { background: linear-gradient(90deg, var(--red), transparent); }
+  .agent-card.agent-2::before { background: linear-gradient(90deg, var(--blue), transparent); }
+  .agent-card.agent-3::before { background: linear-gradient(90deg, var(--green), transparent); }
+  .agent-card.agent-4::before { background: linear-gradient(90deg, var(--grey), transparent); }
+  .agent-card.agent-5::before { background: linear-gradient(90deg, var(--purple), transparent); }
+
+  .agent-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .agent-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .agent-1 .agent-icon { background: var(--red-dim); }
+  .agent-2 .agent-icon { background: var(--blue-dim); }
+  .agent-3 .agent-icon { background: var(--green-dim); }
+  .agent-4 .agent-icon { background: var(--grey-dim); }
+  .agent-5 .agent-icon { background: var(--purple-dim); }
+
+  .agent-status-pill {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .status-live { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-dim); }
+  .status-setup { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-dim); }
+  .status-pending { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .status-retired { background: var(--grey-dim); color: var(--grey); border: 1px solid var(--grey-dim); }
+
+  .agent-name {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .agent-name.struck { text-decoration: line-through; color: var(--muted); }
+
+  .agent-desc {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  .agent-trigger {
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 6px 9px;
+    border-radius: 6px;
+    border-left: 2px solid;
+    margin-bottom: 10px;
+  }
+
+  .agent-1 .agent-trigger { border-color: var(--red); }
+  .agent-2 .agent-trigger { border-color: var(--blue); }
+  .agent-3 .agent-trigger { border-color: var(--green); }
+  .agent-4 .agent-trigger { border-color: var(--grey); }
+  .agent-5 .agent-trigger { border-color: var(--purple); }
+
+  .agent-deps {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    padding: 6px 9px;
+    background: var(--code-bg);
+    border-radius: 6px;
+  }
+  .agent-deps .deps-label {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin-right: 4px;
+  }
+  .agent-deps .deps-list { color: var(--text); }
+
+  .checklist { display: flex; flex-direction: column; gap: 5px; }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .check-item.done { color: var(--text); }
+  .check-box {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    border: 1.5px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 9px;
+  }
+  .check-box.checked { background: var(--green); border-color: var(--green); color: white; }
+  .check-box.unchecked { border-color: var(--border-strong); }
+
+  /* PANELS */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-body { padding: 16px 20px; }
+
+  /* BUG FILTER + ROWS */
+  .bug-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 14px 20px 0;
+  }
+  .filter-pill {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 5px 11px;
+    border-radius: 14px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .filter-pill:hover { color: var(--text); border-color: var(--border-strong); }
+  .filter-pill.active { background: var(--orange-dim); color: var(--orange); border-color: var(--orange-glow); }
+
+  .bug-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .bug-row:last-child { border-bottom: none; }
+  .bug-row.hidden { display: none; }
+
+  .priority-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .p-critical { background: var(--red-strong); box-shadow: 0 0 3px var(--red-dim); }
+  .p-high { background: var(--red); }
+  .p-medium { background: var(--yellow); }
+  .p-low { background: var(--muted); }
+
+  .bug-name { flex: 1; color: var(--text); font-weight: 500; }
+  .bug-system {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .priority-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .pl-critical { background: var(--red-dim); color: var(--red-strong); }
+  .pl-high { background: var(--red-dim); color: var(--red); }
+  .pl-medium { background: var(--yellow-dim); color: var(--yellow); }
+
+  /* ROLLOUT TIMELINE */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .timeline-week { position: relative; margin-bottom: 22px; }
+  .timeline-week:last-child { margin-bottom: 0; }
+
+  .timeline-dot {
+    position: absolute;
+    left: -24px;
+    top: 3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+
+  .tl-done { background: var(--green); box-shadow: 0 0 4px var(--green-dim); }
+  .tl-active { background: var(--orange); box-shadow: 0 0 5px var(--orange-glow); animation: pulse 2s infinite; }
+  .tl-next { background: var(--surface2); border-color: var(--border); }
+
+  .week-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .week-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+
+  .wt-done { background: var(--green-dim); color: var(--green); }
+  .wt-active { background: var(--orange-dim); color: var(--orange); }
+  .wt-next { background: var(--surface2); color: var(--muted); }
+
+  .week-tasks { display: flex; flex-direction: column; gap: 5px; }
+
+  .week-task {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .week-task.done { color: var(--text); }
+  .week-task.done .wt-check { background: var(--green); border-color: var(--green); color: white; }
+
+  .wt-check {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    flex-shrink: 0;
+  }
+
+  .week-task .task-text { flex: 1; }
+
+  /* OWNER TAGS */
+  .owner-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .owner-you { background: var(--grey-dim); color: var(--grey); border-color: var(--grey-dim); }
+  .owner-claude { background: var(--orange-dim); color: var(--orange); border-color: var(--orange-glow); }
+  .owner-outcome { background: var(--green-dim); color: var(--green); border-color: var(--green-dim); }
+  .owner-both {
+    background: linear-gradient(90deg, var(--grey-dim) 50%, var(--orange-dim) 50%);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  /* TOOL MAP */
+  .tool-map {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .tool-flow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 20px 0 8px;
+  }
+
+  .tool-node { display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  .tool-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    background: var(--surface2);
+    position: relative;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .tool-icon:hover { border-color: var(--orange); transform: translateY(-2px); }
+
+  .tool-icon .connected-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--green);
+    border: 2px solid var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: white;
+  }
+
+  .tool-icon .setup-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--yellow);
+    border: 2px solid var(--surface);
+  }
+
+  .tool-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  .flow-arrow {
+    color: var(--border-strong);
+    font-size: 18px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .arrow-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 8px;
+    color: var(--muted);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+
+  .stat-card.orange .stat-value { color: var(--orange); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.yellow .stat-value { color: var(--yellow); }
+  .stat-card.purple .stat-value { color: var(--purple); }
+
+  /* FULL-WIDTH PANEL */
+  .full-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+
+  /* SETUP CHECKLIST */
+  .setup-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .setup-col { background: var(--surface); padding: 18px; }
+
+  .setup-col-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .setup-col-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .setup-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .setup-item:last-child { border-bottom: none; }
+
+  .setup-check {
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    border: 1.5px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 9px;
+    margin-top: 1px;
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .setup-check.done { background: var(--green); border-color: var(--green); color: white; }
+  .setup-check.active { border-color: var(--orange); color: var(--orange); }
+  .setup-check.pending { border-color: var(--border-strong); }
+
+  .setup-text { flex: 1; line-height: 1.4; }
+  .setup-text .main-text { color: var(--text); font-weight: 500; }
+  .setup-text .sub-text { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: 'Inter', sans-serif; }
+
+  .setup-action {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .action-live { background: var(--green-dim); color: var(--green); }
+  .action-next { background: var(--orange-dim); color: var(--orange); }
+  .action-later { background: var(--surface2); color: var(--muted); }
+  .action-retired { background: var(--grey-dim); color: var(--grey); }
+
+  /* SAFETY TABLE */
+  .safety-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .safety-col { background: var(--surface); padding: 20px; }
+
+  .safety-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .safety-row:last-child { border-bottom: none; }
+
+  .safety-icon { font-size: 13px; width: 20px; text-align: center; flex-shrink: 0; }
+  .safety-text { color: var(--text); }
+
+  /* NOTION LAYOUT */
+  .notion-map {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .notion-page {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .notion-page:hover { border-color: var(--orange); transform: translateY(-2px); }
+
+  .notion-emoji { font-size: 24px; margin-bottom: 8px; }
+  .notion-name { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12px; margin-bottom: 4px; }
+  .notion-sub { font-size: 10px; color: var(--muted); line-height: 1.4; font-family: 'Inter', sans-serif; }
+
+  /* PHASE COMPLETION + LOCK */
+  .phase-complete {
+    background: linear-gradient(135deg, var(--green-dim), var(--surface));
+    border: 1px solid var(--green);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 16px;
+    text-align: center;
+    display: none;
+  }
+  .phase-complete.visible { display: block; }
+  .phase-complete .pc-checkmark { font-size: 36px; color: var(--green); margin-bottom: 10px; }
+  .phase-complete .pc-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  .phase-complete .pc-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 16px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .phase-complete .pc-cta {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: var(--orange);
+    color: white;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .phase-complete .pc-cta:hover { box-shadow: 0 0 14px var(--orange-glow); transform: translateY(-1px); }
+
+  .phase-2-card {
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .phase-2-card.locked { opacity: 0.55; }
+  .phase-2-card .p2-lock { font-size: 28px; margin-bottom: 10px; }
+  .phase-2-card .p2-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    margin-bottom: 6px;
+  }
+  .phase-2-card .p2-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  .phase-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+  .phase-progress .pp-label { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .phase-progress .pp-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .phase-progress .pp-fill {
+    height: 100%;
+    background: var(--orange);
+    transition: width 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .phase-progress .pp-count { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--text); }
+
+  /* CAPTURE: SCRATCHPAD + WISHLIST */
+  .capture-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .capture-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .capture-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .capture-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    outline: none;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .capture-input:focus { border-color: var(--orange); }
+
+  .capture-add-btn {
+    background: var(--orange);
+    color: white;
+    border: none;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .capture-add-btn:hover { box-shadow: 0 0 10px var(--orange-glow); }
+
+  .capture-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 360px;
+    padding: 6px 16px 14px;
+  }
+
+  .capture-empty {
+    padding: 26px 8px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .capture-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .capture-item:last-child { border-bottom: none; }
+
+  .capture-item-body { flex: 1; line-height: 1.45; word-break: break-word; }
+  .capture-item-meta {
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  .capture-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .capture-icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .capture-icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .capture-icon-btn.requested { background: var(--green-dim); color: var(--green); border-color: var(--green-dim); }
+  .capture-icon-btn.delete:hover { color: var(--red); border-color: var(--red); }
+
+  .capture-foot {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+  }
+  .capture-foot-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .capture-foot-btn:hover { border-color: var(--orange); color: var(--orange); }
+  .capture-foot-btn.copied { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 1400px) {
+    .agents-row { grid-template-columns: repeat(3, 1fr); }
+    .setup-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 1100px) {
+    .grid-main { grid-template-columns: 1fr; }
+    .sidebar { position: relative; height: auto; top: 0; }
+    .agents-row { grid-template-columns: 1fr 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .setup-grid { grid-template-columns: 1fr 1fr; }
+    .notion-map { grid-template-columns: repeat(2, 1fr); }
+    .capture-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 680px) {
+    .header { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
+    .main { padding: 20px 18px; }
+    .migration-banner { padding: 10px 18px; flex-wrap: wrap; }
+    .agents-row, .stats-row, .setup-grid, .notion-map, .safety-grid { grid-template-columns: 1fr; }
+  }
+
+  .tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .tag.orange { background: var(--orange-dim); color: var(--orange); border-color: var(--orange-glow); }
+  .tag.green { background: var(--green-dim); color: var(--green); border-color: var(--green-dim); }
+  .tag.blue { background: var(--blue-dim); color: var(--blue); border-color: var(--blue-dim); }
+  .tag.red { background: var(--red-dim); color: var(--red); border-color: var(--red-dim); }
+  .tag.purple { background: var(--purple-dim); color: var(--purple); border-color: var(--purple-dim); }
+  .tag.grey { background: var(--grey-dim); color: var(--grey); border-color: var(--grey-dim); }
+
+  [title] { cursor: help; }
+</style>
+</head>
+<body>
+
+<!-- MIGRATION BANNER -->
+<div id="migration-banner" class="migration-banner">
+  <span class="mb-icon">🗄️</span>
+  <div class="mb-text">
+    <strong>Master Manifest retired</strong> — Notion is now SSoT. Manifest Archive v126 is locked and accessible in Notion.
+  </div>
+  <div class="mb-actions">
+    <a class="mb-btn" id="mb-archive-link" href="#" target="_blank" rel="noopener">View Archive</a>
+    <button class="mb-btn dismiss" id="mb-dismiss">Dismiss</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">CF</div>
+    <div>
+      <div class="logo-text">Chef<span>Flow</span></div>
+    </div>
+  </div>
+  <div style="font-family:'Inter',sans-serif;font-weight:800;font-size:15px;letter-spacing:-0.3px;color:var(--muted)">Agentic Command Center</div>
+  <div class="header-meta">
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button data-theme-set="light" title="Light mode" class="active">☀</button>
+      <button data-theme-set="dark" title="Dark mode">☾</button>
+    </div>
+    <div class="version-pill">v126 · Beta 2.1-Stable</div>
+    <div class="status-live"><div class="pulse-dot"></div> Beta Live</div>
+  </div>
+</div>
+
+<div class="grid-main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <a class="nav-item active" href="#agents"><span class="nav-icon">🤖</span> Agent System</a>
+      <a class="nav-item" href="#rollout"><span class="nav-icon">📅</span> Rollout Plan</a>
+      <a class="nav-item" href="#phase"><span class="nav-icon">🎯</span> Phase Status</a>
+      <a class="nav-item" href="#setup"><span class="nav-icon">✅</span> Setup Checklist</a>
+      <a class="nav-item" href="#stack"><span class="nav-icon">🔌</span> Tool Map</a>
+      <a class="nav-item" href="#bugs"><span class="nav-icon">🐛</span> Bug Vault <span class="nav-badge">9</span></a>
+      <a class="nav-item" href="#notion"><span class="nav-icon">🗂️</span> Notion Layout</a>
+      <a class="nav-item" href="#safety"><span class="nav-icon">🛡️</span> Safety Rails</a>
+      <a class="nav-item" href="#capture"><span class="nav-icon">📝</span> Capture</a>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Project Health</div>
+      <div style="padding:0 4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--muted)">Active Agents</span>
+          <span style="font-size:12px;font-family:'Inter',sans-serif;color:var(--orange)">2/4</span>
+        </div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px;margin-bottom:14px">
+          <div style="height:4px;width:50%;background:var(--orange);border-radius:2px"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--muted)">Bugs Resolved</span>
+          <span style="font-size:12px;font-family:'Inter',sans-serif;color:var(--green)">52/61</span>
+        </div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px;margin-bottom:14px">
+          <div style="height:4px;width:85%;background:var(--green);border-radius:2px"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:12px;color:var(--muted)">Features Live</span>
+          <span style="font-size:12px;font-family:'Inter',sans-serif;color:var(--blue)">83/85</span>
+        </div>
+        <div style="height:4px;background:var(--surface2);border-radius:2px">
+          <div style="height:4px;width:97%;background:var(--blue);border-radius:2px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Critical Flags</div>
+      <div class="nav-item" style="background:var(--red-dim);border:1px solid var(--red-dim);color:var(--red-strong);cursor:default">
+        <span class="nav-icon">⚠️</span> B-010 Legal Footer
+      </div>
+      <div class="nav-item" style="background:var(--red-dim);border:1px solid var(--red-dim);color:var(--red);cursor:default;margin-top:4px">
+        <span class="nav-icon">🧈</span> Butter Math Active
+      </div>
+      <div class="nav-item" style="background:var(--red-dim);border:1px solid var(--red-dim);color:var(--red);cursor:default;margin-top:4px">
+        <span class="nav-icon">👻</span> B-006 Gemini Drops
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card orange">
+        <div class="stat-value">4</div>
+        <div class="stat-label">Active Agents (of 5)</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-value">9</div>
+        <div class="stat-label">Active Bugs</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-value">52</div>
+        <div class="stat-label">Bugs Slayed</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-value">4</div>
+        <div class="stat-label">Weeks to Full Auto</div>
+      </div>
+    </div>
+
+    <!-- AGENT CARDS -->
+    <div id="agents" class="section-header">
+      <div class="section-title">The 5-Agent System</div>
+      <div class="section-sub">a4 retired · a5 ships ahead of a3</div>
+    </div>
+
+    <div class="agents-row">
+
+      <!-- AGENT 1 -->
+      <div class="agent-card agent-1">
+        <div class="agent-header">
+          <div class="agent-icon">🐛</div>
+          <div class="agent-status-pill status-live">Live</div>
+        </div>
+        <div class="agent-name">a1 — Bug Tracker</div>
+        <div class="agent-desc">Reads test notes or error logs, cross-references the Bug Vault, logs structured entries to Notion.</div>
+        <div class="agent-trigger">TRIGGER: paste bug notes to chat</div>
+        <div class="agent-deps"><span class="deps-label">deps:</span><span class="deps-list">Notion MCP · Bug Vault DB</span></div>
+        <div class="checklist">
+          <div class="check-item done"><div class="check-box checked">✓</div> Claude Project connected</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Notion MCP connected</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Bug Vault DB shared</div>
+        </div>
+      </div>
+
+      <!-- AGENT 2 -->
+      <div class="agent-card agent-2">
+        <div class="agent-header">
+          <div class="agent-icon">⚙️</div>
+          <div class="agent-status-pill status-live">Live</div>
+        </div>
+        <div class="agent-name">a2 — Code Writer</div>
+        <div class="agent-desc">Writes surgical code, opens fork branches, files PRs, posts diff + link to Notion Task Queue.</div>
+        <div class="agent-trigger">TRIGGER: describe task in Claude Code Desktop</div>
+        <div class="agent-deps"><span class="deps-label">deps:</span><span class="deps-list">a1 · Claude Code Desktop · GitHub fork protection</span></div>
+        <div class="checklist">
+          <div class="check-item done"><div class="check-box checked">✓</div> Repo connected</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Fork protection enabled</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> First PR flow validated</div>
+        </div>
+      </div>
+
+      <!-- AGENT 3 -->
+      <div class="agent-card agent-3">
+        <div class="agent-header">
+          <div class="agent-icon">📡</div>
+          <div class="agent-status-pill status-live">Live</div>
+        </div>
+        <div class="agent-name">a3 — Ops Monitor</div>
+        <div class="agent-desc">Sunday Pulse — reads Firestore activity, generates Discord post, alerts Notion on anomalies.</div>
+        <div class="agent-trigger">TRIGGER: GitHub Action — weekly</div>
+        <div class="agent-deps"><span class="deps-label">deps:</span><span class="deps-list">a1 · Discord webhooks · Firebase service account</span></div>
+        <div class="checklist">
+          <div class="check-item done"><div class="check-box checked">✓</div> Discord webhook URLs</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Firestore monitor script</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Sunday schedule</div>
+        </div>
+      </div>
+
+      <!-- AGENT 4 — RETIRED -->
+      <div class="agent-card agent-4 retired" title="Replaced by Notion SSoT — no agent needed">
+        <div class="agent-header">
+          <div class="agent-icon">🗄️</div>
+          <div class="agent-status-pill status-retired">Retired</div>
+        </div>
+        <div class="agent-name struck">a4 — Manifest Keeper</div>
+        <div class="agent-desc">Replaced by Notion SSoT. See Manifest Migration banner — no agent needed.</div>
+        <div class="agent-trigger">TRIGGER: —</div>
+        <div class="agent-deps"><span class="deps-label">deps:</span><span class="deps-list">N/A — slot reclaimed</span></div>
+        <div class="checklist">
+          <div class="check-item done"><div class="check-box checked">✓</div> Manifest Archive v126 locked</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Notion SSoT in place</div>
+        </div>
+      </div>
+
+      <!-- AGENT 5 -->
+      <div class="agent-card agent-5">
+        <div class="agent-header">
+          <div class="agent-icon">🧪</div>
+          <div class="agent-status-pill status-setup">Setup</div>
+        </div>
+        <div class="agent-name">a5 — Prompt Validator</div>
+        <div class="agent-desc">Validates Gemini prompts against a fixed test suite. Logs results to Notion Prompt Log. Ships ahead of a3.</div>
+        <div class="agent-trigger">TRIGGER: pre-deploy hook OR manual</div>
+        <div class="agent-deps"><span class="deps-label">deps:</span><span class="deps-list">a1 · Gemini API key · Notion Prompt Log</span></div>
+        <div class="checklist">
+          <div class="check-item done"><div class="check-box checked">✓</div> Prompt Log DB created</div>
+          <div class="check-item done"><div class="check-box checked">✓</div> Test suite defined</div>
+          <div class="check-item"><div class="check-box unchecked"></div> First validation run</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TOOL MAP -->
+    <div id="stack" class="section-header">
+      <div class="section-title">Tool Connection Map</div>
+      <div class="section-sub">What connects Claude to your stack</div>
+    </div>
+
+    <div class="tool-map">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green)"><div style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>Connected</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--yellow)"><div style="width:8px;height:8px;border-radius:50%;background:var(--yellow)"></div>Needs Setup</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)"><div style="width:8px;height:8px;border-radius:50%;background:var(--border-strong)"></div>Leave As-Is</div>
+      </div>
+      <div class="tool-flow">
+        <div class="tool-node"><div class="tool-icon">🤖<div class="connected-badge">✓</div></div><div class="tool-label">Claude<br>claude.ai</div></div>
+        <div class="flow-arrow">→<div class="arrow-label">reads</div></div>
+        <div class="tool-node"><div class="tool-icon">📋<div class="connected-badge">✓</div></div><div class="tool-label">Notion<br>MCP Connected</div></div>
+        <div class="flow-arrow" style="color:var(--orange)">⟷<div class="arrow-label">logs bugs</div></div>
+        <div class="tool-node"><div class="tool-icon">💻<div class="connected-badge">✓</div></div><div class="tool-label">Claude Code<br>Desktop App</div></div>
+        <div class="flow-arrow">→<div class="arrow-label">writes to fork</div></div>
+        <div class="tool-node"><div class="tool-icon">🐙<div class="connected-badge">✓</div></div><div class="tool-label">GitHub<br>Fork PRs Only</div></div>
+        <div class="flow-arrow">→<div class="arrow-label">pr link</div></div>
+        <div class="tool-node"><div class="tool-icon">🔥<div class="connected-badge">✓</div></div><div class="tool-label">Firebase<br>Read-Only Logs</div></div>
+        <div class="flow-arrow">→<div class="arrow-label">weekly post</div></div>
+        <div class="tool-node"><div class="tool-icon">💬<div class="setup-badge"></div></div><div class="tool-label">Discord<br>Webhook Only</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);padding:10px;background:var(--surface2);border-radius:8px">
+          <div style="color:var(--text);font-weight:600;font-size:12px;margin-bottom:4px">🔥 Firestore</div>
+          Read-only via Admin SDK. Claude never writes to your DB — only reads <code style="font-size:10px;background:var(--code-bg);padding:1px 4px;border-radius:3px">activity_logs</code> for anomaly detection.
+        </div>
+        <div style="font-size:11px;color:var(--muted);padding:10px;background:var(--surface2);border-radius:8px">
+          <div style="color:var(--text);font-weight:600;font-size:12px;margin-bottom:4px">☁️ GCP Console</div>
+          Completely untouched. 90-day TTL policy stays managed here. Claude has zero access.
+        </div>
+        <div style="font-size:11px;color:var(--muted);padding:10px;background:var(--surface2);border-radius:8px">
+          <div style="color:var(--text);font-weight:600;font-size:12px;margin-bottom:4px">💬 Discord</div>
+          Webhook URL only — no bot, no OAuth. Claude posts to specific channels via direct webhook call.
+        </div>
+      </div>
+    </div>
+
+    <!-- ROLLOUT PLAN -->
+    <div id="rollout" class="section-header">
+      <div class="section-title">4-Week Rollout</div>
+      <div class="section-sub">Sequential — do not skip weeks</div>
+    </div>
+
+    <div class="full-panel">
+      <div class="panel-head">
+        <div class="panel-title">📅 Timeline</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="owner-tag owner-you">You</span>
+          <span class="owner-tag owner-claude">Claude</span>
+          <span class="owner-tag owner-both">You+Claude</span>
+          <span class="owner-tag owner-outcome">Outcome</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="timeline">
+
+          <div class="timeline-week" data-week="1">
+            <div class="timeline-dot tl-done"></div>
+            <div class="week-label">Week 1 — Foundation <span class="week-tag wt-done">Complete</span></div>
+            <div class="week-tasks">
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Set up Notion HQ (4 pages)</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Share Notion Bug Vault DB ID with Claude</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Test: paste a bug → confirm Notion log</span><span class="owner-tag owner-both">You+Claude</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">a1 is live</span><span class="owner-tag owner-outcome">Outcome</span></div>
+            </div>
+          </div>
+
+          <div class="timeline-week" data-week="2">
+            <div class="timeline-dot tl-done"></div>
+            <div class="week-label">Week 2 — Code Pipeline <span class="week-tag wt-done">Complete</span></div>
+            <div class="week-tasks">
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Install Claude Code Desktop</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Open ChefFlow repo in Claude Code</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Set fork protection on GitHub main</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">First fix PR — Cilantro Bug</span><span class="owner-tag owner-claude">Claude</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Confirm PR appears in Notion Task Queue</span><span class="owner-tag owner-outcome">Outcome</span></div>
+            </div>
+          </div>
+
+          <div class="timeline-week" data-week="3">
+            <div class="timeline-dot tl-active"></div>
+            <div class="week-label">Week 3 — Prompt Validator + Ops <span class="week-tag wt-active">Active Now</span></div>
+            <div class="week-tasks">
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Create Notion Prompt Log DB</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">a5 test suite definition</span><span class="owner-tag owner-both">You+Claude</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Create Discord webhooks (2 channels)</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">a3 Firestore monitor script</span><span class="owner-tag owner-claude">Claude</span></div>
+              <div class="week-task done"><div class="wt-check">✓</div><span class="task-text">Manual Sunday Pulse trial</span><span class="owner-tag owner-both">You+Claude</span></div>
+              <div class="week-task"><div class="wt-check"></div><span class="task-text">a3 + a5 both live</span><span class="owner-tag owner-outcome">Outcome</span></div>
+            </div>
+          </div>
+
+          <div class="timeline-week" data-week="4">
+            <div class="timeline-dot tl-next"></div>
+            <div class="week-label">Week 4 — Full Autonomous Mode <span class="week-tag wt-next">Goal</span></div>
+            <div class="week-tasks">
+              <div class="week-task"><div class="wt-check"></div><span class="task-text">All 4 active agents running on schedule</span><span class="owner-tag owner-claude">Claude</span></div>
+              <div class="week-task"><div class="wt-check"></div><span class="task-text">Weekly Notion dashboard review only</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task"><div class="wt-check"></div><span class="task-text">Approve/reject PRs on your schedule</span><span class="owner-tag owner-you">You</span></div>
+              <div class="week-task"><div class="wt-check"></div><span class="task-text">ChefFlow runs without you</span><span class="owner-tag owner-outcome">Outcome</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE STATUS -->
+    <div id="phase" class="section-header">
+      <div class="section-title">Phase Status</div>
+      <div class="section-sub">Phase 1 → Phase 2 gate</div>
+    </div>
+
+    <div class="phase-progress">
+      <span class="pp-label">Phase 1</span>
+      <div class="pp-bar"><div class="pp-fill" id="phase1-fill" style="width:0%"></div></div>
+      <span class="pp-count" id="phase1-count">0/0</span>
+    </div>
+
+    <div id="phase-complete" class="phase-complete">
+      <div class="pc-checkmark">✓</div>
+      <div class="pc-title">Phase 1 Complete</div>
+      <div class="pc-sub">All agents running autonomously. Weekly review only. ChefFlow operates without you.</div>
+      <button class="pc-cta" id="phase2-unlock-btn">Phase 2 unlocked — View plan →</button>
+    </div>
+
+    <div id="phase-2-card" class="phase-2-card locked">
+      <div class="p2-lock">🔒</div>
+      <div class="p2-title">Phase 2 — Locked</div>
+      <div class="p2-sub">Available when Phase 1 is fully operational.</div>
+    </div>
+
+    <!-- SETUP CHECKLIST FULL -->
+    <div id="setup" class="section-header">
+      <div class="section-title">Complete Setup Checklist</div>
+      <div class="section-sub">By agent</div>
+    </div>
+
+    <div class="full-panel">
+      <div class="panel-head">
+        <div class="panel-title">🔧 All Setup Tasks</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <div class="tag green">2 Live</div>
+          <div class="tag orange">2 Needs Setup</div>
+          <div class="tag grey">1 Retired</div>
+        </div>
+      </div>
+      <div class="setup-grid">
+
+        <div class="setup-col">
+          <div class="setup-col-title">🐛 a1 <div class="tag red" style="font-size:9px">Bug Tracker</div></div>
+          <div class="setup-col-sub">Live</div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Claude Project</div><div class="sub-text">Manifest + context files</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Notion MCP</div><div class="sub-text">Verified in integrations</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Bug Vault DB</div><div class="sub-text">ID, Title, Priority, System, Status, PR Link, Date</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">First bug logged</div><div class="sub-text">End-to-end paste → log confirmed</div></div><div class="setup-action action-live">Done</div></div>
+        </div>
+
+        <div class="setup-col">
+          <div class="setup-col-title">⚙️ a2 <div class="tag blue" style="font-size:9px">Code Writer</div></div>
+          <div class="setup-col-sub">Live</div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Claude Code Desktop</div><div class="sub-text">Installed and authed</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Repo opened in Claude Code</div><div class="sub-text">ChefFlow-Beta-v2 active</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Main branch protection</div><div class="sub-text">Fork-only PRs required</div></div><div class="setup-action action-live">Done</div></div>
+          <div class="setup-item"><div class="setup-check active">→</div><div class="setup-text"><div class="main-text">First PR test</div><div class="sub-text">Cilantro Bug fix</div></div><div class="setup-action action-next">Next</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">CLAUDE.md in project</div><div class="sub-text">System prompt pasted</div></div><div class="setup-action action-next">Next</div></div>
+        </div>
+
+        <div class="setup-col">
+          <div class="setup-col-title">📡 a3 <div class="tag green" style="font-size:9px">Ops Monitor</div></div>
+          <div class="setup-col-sub">Week 3</div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Discord webhook · #announcements</div><div class="sub-text">Channel → Integrations → Webhooks</div></div><div class="setup-action action-later">W3</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Discord webhook · #module-brainstorming</div><div class="sub-text">Repeat for 2nd channel</div></div><div class="setup-action action-later">W3</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Firestore monitor script</div><div class="sub-text">Reads activity_logs → Claude API</div></div><div class="setup-action action-later">W3</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">GitHub Action — Sunday schedule</div><div class="sub-text">Weekly trigger, zero cost</div></div><div class="setup-action action-later">W3</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Manual test → Schedule</div><div class="sub-text">Verify post + log before automating</div></div><div class="setup-action action-later">W3</div></div>
+        </div>
+
+        <div class="setup-col" style="opacity:0.55" title="Replaced by Notion SSoT — no agent needed">
+          <div class="setup-col-title">🗄️ <span style="text-decoration:line-through">a4</span> <div class="tag grey" style="font-size:9px">Retired</div></div>
+          <div class="setup-col-sub">Slot reclaimed</div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Manifest Archive v126</div><div class="sub-text">Locked, accessible in Notion</div></div><div class="setup-action action-retired">Closed</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Notion SSoT in place</div><div class="sub-text">No further work required</div></div><div class="setup-action action-retired">Closed</div></div>
+          <div class="setup-item"><div class="setup-check done">✓</div><div class="setup-text"><div class="main-text">Migration banner deployed</div><div class="sub-text">Top of dashboard</div></div><div class="setup-action action-retired">Closed</div></div>
+        </div>
+
+        <div class="setup-col">
+          <div class="setup-col-title">🧪 a5 <div class="tag purple" style="font-size:9px">Prompt Validator</div></div>
+          <div class="setup-col-sub">Ships ahead of a3</div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Notion Prompt Log DB</div><div class="sub-text">Run, Prompt, Pass/Fail, Notes, Date</div></div><div class="setup-action action-next">Next</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Test suite definition</div><div class="sub-text">Fixed prompts + expected outputs</div></div><div class="setup-action action-next">Next</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Gemini API key wired</div><div class="sub-text">Env var, not client code</div></div><div class="setup-action action-next">Next</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">First validation run</div><div class="sub-text">N/N pass logged to Prompt Log</div></div><div class="setup-action action-next">Next</div></div>
+          <div class="setup-item"><div class="setup-check pending"></div><div class="setup-text"><div class="main-text">Pre-deploy hook OR manual</div><div class="sub-text">Decide trigger mode</div></div><div class="setup-action action-next">Next</div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BUG VAULT -->
+    <div id="bugs" class="section-header">
+      <div class="section-title">Active Bug Vault</div>
+      <div class="section-sub">9 Active — a1 auto-tracks these</div>
+    </div>
+
+    <div class="full-panel">
+      <div class="panel-head">
+        <div class="panel-title">🐛 By File</div>
+        <div class="tag orange">Click pills to filter</div>
+      </div>
+      <div class="bug-filters" id="bug-filters">
+        <button class="filter-pill active" data-file="all">All</button>
+        <button class="filter-pill" data-file="quantizer.ts">quantizer.ts</button>
+        <button class="filter-pill" data-file="gemini.ts">gemini.ts</button>
+        <button class="filter-pill" data-file="App.tsx">App.tsx</button>
+        <button class="filter-pill" data-file="Wix">Wix</button>
+        <button class="filter-pill" data-file="Firebase">Firebase</button>
+        <button class="filter-pill" data-file="Other">Other</button>
+      </div>
+      <div class="panel-body" style="padding:12px 20px 18px">
+        <div id="bug-list">
+          <div class="bug-row" data-file="Other">
+            <div class="priority-dot p-critical"></div>
+            <div class="bug-name">B-010 Legal Beta Disclaimer</div>
+            <div class="bug-system">Footer</div>
+            <div class="priority-label pl-critical">Critical</div>
+          </div>
+          <div class="bug-row" data-file="quantizer.ts">
+            <div class="priority-dot p-high"></div>
+            <div class="bug-name">Butter Math — Solid fat volume → mass</div>
+            <div class="bug-system">quantizer.ts</div>
+            <div class="priority-label pl-high">High</div>
+          </div>
+          <div class="bug-row" data-file="gemini.ts">
+            <div class="priority-dot p-high"></div>
+            <div class="bug-name">B-006 Gemini drops items (Eggs)</div>
+            <div class="bug-system">gemini.ts</div>
+            <div class="priority-label pl-high">High</div>
+          </div>
+          <div class="bug-row" data-file="gemini.ts">
+            <div class="priority-dot p-high"></div>
+            <div class="bug-name">B-007 Liquids share quantity</div>
+            <div class="bug-system">gemini.ts</div>
+            <div class="priority-label pl-high">High</div>
+          </div>
+          <div class="bug-row" data-file="quantizer.ts">
+            <div class="priority-dot p-high"></div>
+            <div class="bug-name">Lime Bug — juice/zest → whole limes</div>
+            <div class="bug-system">quantizer.ts</div>
+            <div class="priority-label pl-high">High</div>
+          </div>
+          <div class="bug-row" data-file="Other">
+            <div class="priority-dot p-high"></div>
+            <div class="bug-name">Guardian Gap — gal/qt/pt/bottle missing</div>
+            <div class="bug-system">Guardian</div>
+            <div class="priority-label pl-high">High</div>
+          </div>
+          <div class="bug-row" data-file="Firebase">
+            <div class="priority-dot p-medium"></div>
+            <div class="bug-name">B-013 Admin Telemetry Dashboard</div>
+            <div class="bug-system">Firestore</div>
+            <div class="priority-label pl-medium">Medium</div>
+          </div>
+          <div class="bug-row" data-file="quantizer.ts">
+            <div class="priority-dot p-medium"></div>
+            <div class="bug-name">Cilantro Bug — herbs default to bunch</div>
+            <div class="bug-system">quantizer.ts</div>
+            <div class="priority-label pl-medium">Medium</div>
+          </div>
+          <div class="bug-row" data-file="quantizer.ts">
+            <div class="priority-dot p-medium"></div>
+            <div class="bug-name">Imperial Mushroom — volume → weight</div>
+            <div class="bug-system">quantizer.ts</div>
+            <div class="priority-label pl-medium">Medium</div>
+          </div>
+          <div class="bug-row" data-file="App.tsx">
+            <div class="priority-dot p-medium"></div>
+            <div class="bug-name">Mobile Hero Jump — layout shift</div>
+            <div class="bug-system">App.tsx</div>
+            <div class="priority-label pl-medium">Medium</div>
+          </div>
+          <div class="bug-row" data-file="gemini.ts" style="opacity:0.55">
+            <div class="priority-dot p-low"></div>
+            <div class="bug-name">Video Recipe URLs — not parseable</div>
+            <div class="bug-system">gemini.ts</div>
+            <div class="priority-label" style="background:var(--surface2);color:var(--muted)">Pending</div>
+          </div>
+          <div class="bug-row" data-file="gemini.ts" style="opacity:0.55">
+            <div class="priority-dot p-low"></div>
+            <div class="bug-name">Multi-Recipe URL parsing</div>
+            <div class="bug-system">gemini.ts</div>
+            <div class="priority-label" style="background:var(--surface2);color:var(--muted)">Pending</div>
+          </div>
+        </div>
+        <div id="bug-empty" style="display:none;text-align:center;padding:24px;color:var(--muted);font-family:'Inter',sans-serif;font-size:11px">No bugs in this file.</div>
+      </div>
+    </div>
+
+    <!-- NOTION LAYOUT -->
+    <div id="notion" class="section-header">
+      <div class="section-title">Notion HQ Layout</div>
+      <div class="section-sub">Your SSoT after Manifest retirement</div>
+    </div>
+
+    <div class="full-panel">
+      <div class="panel-head">
+        <div class="panel-title">🗂️ ChefFlow HQ Structure</div>
+        <div class="tag orange">SSoT</div>
+      </div>
+      <div class="notion-map">
+        <div class="notion-page">
+          <div class="notion-emoji">📊</div>
+          <div class="notion-name">Session Dashboard</div>
+          <div class="notion-sub">Session summary after every build session. Wins, failures, version.</div>
+        </div>
+        <div class="notion-page" style="border-color:var(--red-dim)">
+          <div class="notion-emoji">🐛</div>
+          <div class="notion-name">Bug Vault</div>
+          <div class="notion-sub">a1 auto-logs here. ID, Title, Priority, System, Status, PR Link, Date.</div>
+        </div>
+        <div class="notion-page" style="border-color:rgba(83,82,237,0.25)">
+          <div class="notion-emoji">✅</div>
+          <div class="notion-name">Task Queue</div>
+          <div class="notion-sub">a2 posts PR links + diffs here. You review and merge at your pace.</div>
+        </div>
+        <div class="notion-page" style="border-color:rgba(34,197,94,0.25)">
+          <div class="notion-emoji">📡</div>
+          <div class="notion-name">Ops Log</div>
+          <div class="notion-sub">a3 posts Discord drafts + Firestore anomaly alerts every Sunday.</div>
+        </div>
+        <div class="notion-page" style="border-color:rgba(147,51,234,0.25)">
+          <div class="notion-emoji">🧪</div>
+          <div class="notion-name">Prompt Log</div>
+          <div class="notion-sub">a5 logs validation runs. Pass/fail per prompt + diffs.</div>
+        </div>
+        <div class="notion-page" style="border-color:rgba(156,163,175,0.25)">
+          <div class="notion-emoji">🗄️</div>
+          <div class="notion-name">Manifest Archive</div>
+          <div class="notion-sub">v126 locked. Reference only. No new writes.</div>
+        </div>
+      </div>
+      <div style="padding:16px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
+        💡 <strong style="color:var(--text)">Notion is SSoT.</strong> All 6 panels here. Manifest is frozen — append-only writes go to the active DBs above.
+      </div>
+    </div>
+
+    <!-- SAFETY RAILS -->
+    <div id="safety" class="section-header">
+      <div class="section-title">Safety Rails</div>
+      <div class="section-sub">What Claude can and cannot do</div>
+    </div>
+
+    <div class="full-panel">
+      <div class="safety-grid">
+        <div class="safety-col">
+          <div style="font-family:'Inter',sans-serif;font-weight:700;font-size:14px;color:var(--green);margin-bottom:14px;display:flex;align-items:center;gap:8px">✅ Claude CAN Do</div>
+          <div class="safety-row"><div class="safety-icon">📝</div><div class="safety-text">Write code to GitHub fork branches only</div></div>
+          <div class="safety-row"><div class="safety-icon">📋</div><div class="safety-text">Log bugs and tasks to Notion (append-only)</div></div>
+          <div class="safety-row"><div class="safety-icon">👁️</div><div class="safety-text">Read Firestore activity_logs (read-only)</div></div>
+          <div class="safety-row"><div class="safety-icon">📣</div><div class="safety-text">Post to Discord via webhook URLs</div></div>
+          <div class="safety-row"><div class="safety-icon">🧪</div><div class="safety-text">Run Gemini prompt validations and log results</div></div>
+          <div class="safety-row"><div class="safety-icon">📊</div><div class="safety-text">Generate PR diffs and code review notes</div></div>
+          <div class="safety-row"><div class="safety-icon">🗓️</div><div class="safety-text">Alert on anomalies in Notion Ops Log</div></div>
+        </div>
+        <div class="safety-col">
+          <div style="font-family:'Inter',sans-serif;font-weight:700;font-size:14px;color:var(--red);margin-bottom:14px;display:flex;align-items:center;gap:8px">❌ Claude CANNOT Do</div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Merge code to main — you approve every PR</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Write to Firestore — zero DB write access</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Touch Firebase Console or GCP</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Overwrite Notion entries — append-only</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Modify the Manifest Archive (frozen)</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Access Discord DMs or server settings</div></div>
+          <div class="safety-row"><div class="safety-icon">🚫</div><div class="safety-text">Touch Wix or marketing stack</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAPTURE: SCRATCHPAD + WISHLIST -->
+    <div id="capture" class="section-header">
+      <div class="section-title">Capture</div>
+      <div class="section-sub">Mid-flow thoughts + Claude wishlist</div>
+    </div>
+
+    <div class="capture-grid">
+
+      <div class="capture-panel">
+        <div class="panel-head">
+          <div class="panel-title">📝 Session Scratchpad</div>
+          <span class="tag">Local only</span>
+        </div>
+        <div class="capture-input-row">
+          <input type="text" class="capture-input" id="scratchpad-input" placeholder="Mid-chat thought, idea, follow-up…" maxlength="500">
+          <button class="capture-add-btn" id="scratchpad-add">Add</button>
+        </div>
+        <div class="capture-list" id="scratchpad-list">
+          <div class="capture-empty">Nothing captured yet. Drop a thought — it persists across reloads.</div>
+        </div>
+        <div class="capture-foot">
+          <span id="scratchpad-count">0 captured</span>
+          <button class="capture-foot-btn" id="scratchpad-copy" title="Push to Notion is pending sync architecture — copy for now">Copy for Notion</button>
+        </div>
+      </div>
+
+      <div class="capture-panel">
+        <div class="panel-head">
+          <div class="panel-title">⭐ Claude Customization Wishlist</div>
+          <span class="tag">Feedback queue</span>
+        </div>
+        <div class="capture-input-row">
+          <input type="text" class="capture-input" id="wishlist-input" placeholder="Feature, behavior change, integration…" maxlength="500">
+          <button class="capture-add-btn" id="wishlist-add">Add</button>
+        </div>
+        <div class="capture-list" id="wishlist-list">
+          <div class="capture-empty">Add things you want Claude to do differently.</div>
+        </div>
+        <div class="capture-foot">
+          <span id="wishlist-count">0 items</span>
+          <button class="capture-foot-btn" id="wishlist-copy">Copy for feedback</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="height:40px"></div>
+
+  </div>
+</div>
+
+<script>
+  // window.storage — thin localStorage wrapper, chefflow:* prefix
+  window.storage = {
+    _key: (k) => 'chefflow:' + k,
+    get(k, fallback) {
+      try {
+        const raw = localStorage.getItem(this._key(k));
+        return raw == null ? fallback : JSON.parse(raw);
+      } catch { return fallback; }
+    },
+    set(k, v) {
+      try { localStorage.setItem(this._key(k), JSON.stringify(v)); } catch {}
+    },
+    remove(k) { try { localStorage.removeItem(this._key(k)); } catch {} }
+  };
+
+  // Theme toggle
+  const themeToggle = document.querySelector('.theme-toggle');
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    themeToggle.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.themeSet === t);
+    });
+    window.storage.set('theme', t);
+  }
+  applyTheme(window.storage.get('theme', 'light'));
+  themeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-theme-set]');
+    if (btn) applyTheme(btn.dataset.themeSet);
+  });
+
+  // Migration banner — link target + dismissal
+  const NOTION_ARCHIVE_URL = window.storage.get('notion-archive-url', '#');
+  document.getElementById('mb-archive-link').href = NOTION_ARCHIVE_URL;
+  if (window.storage.get('migration-banner-dismissed', false)) {
+    document.getElementById('migration-banner').classList.add('hidden');
+  }
+  document.getElementById('mb-dismiss').addEventListener('click', () => {
+    window.storage.set('migration-banner-dismissed', true);
+    document.getElementById('migration-banner').classList.add('hidden');
+  });
+
+  // Nav scroll + active state
+  document.querySelectorAll('.nav-item[href]').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const id = this.getAttribute('href').replace('#','');
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Setup checkbox interactivity
+  document.querySelectorAll('.setup-check').forEach(box => {
+    box.addEventListener('click', function() {
+      if (this.classList.contains('done')) return;
+      if (this.classList.contains('active')) {
+        this.classList.remove('active');
+        this.classList.add('done');
+        this.textContent = '✓';
+      } else if (this.classList.contains('pending')) {
+        this.classList.remove('pending');
+        this.classList.add('active');
+        this.textContent = '→';
+      }
+    });
+  });
+
+  // Bug file filter
+  const bugFilters = document.querySelectorAll('#bug-filters .filter-pill');
+  const bugRows = document.querySelectorAll('#bug-list .bug-row');
+  const bugEmpty = document.getElementById('bug-empty');
+  bugFilters.forEach(pill => {
+    pill.addEventListener('click', () => {
+      bugFilters.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const file = pill.dataset.file;
+      let visible = 0;
+      bugRows.forEach(row => {
+        const match = file === 'all' || row.dataset.file === file;
+        row.classList.toggle('hidden', !match);
+        if (match) visible++;
+      });
+      bugEmpty.style.display = visible === 0 ? 'block' : 'none';
+    });
+  });
+
+  // Phase 1 completion check (data-driven from rollout tasks)
+  function evaluatePhase1() {
+    const tasks = document.querySelectorAll('.timeline-week .week-task');
+    let done = 0;
+    tasks.forEach(t => { if (t.classList.contains('done')) done++; });
+    const total = tasks.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('phase1-fill').style.width = pct + '%';
+    document.getElementById('phase1-count').textContent = done + '/' + total;
+    const complete = total > 0 && done === total;
+    document.getElementById('phase-complete').classList.toggle('visible', complete);
+    document.getElementById('phase-2-card').classList.toggle('locked', !complete);
+    if (complete) {
+      document.getElementById('phase-2-card').innerHTML =
+        '<div class="p2-lock">🔓</div>' +
+        '<div class="p2-title">Phase 2 — Unlocked</div>' +
+        '<div class="p2-sub">Plan placeholder — details land after Phase 1 is operational.</div>';
+    }
+  }
+  evaluatePhase1();
+  document.getElementById('phase2-unlock-btn')?.addEventListener('click', () => {
+    document.getElementById('phase-2-card').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Capture lists (Scratchpad + Wishlist) — shared factory
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+  }
+  function makeCapture(opts) {
+    const { storeKey, listEl, inputEl, addBtn, copyBtn, countEl, emptyText, hasRequested, copyFormat } = opts;
+    let items = window.storage.get(storeKey, []);
+    function persist() { window.storage.set(storeKey, items); }
+    function fmtTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+             ' · ' +
+             d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    }
+    function render() {
+      listEl.innerHTML = '';
+      if (!items.length) {
+        listEl.innerHTML = '<div class="capture-empty">' + escapeHtml(emptyText) + '</div>';
+      } else {
+        items.forEach((it, idx) => {
+          const row = document.createElement('div');
+          row.className = 'capture-item';
+          const reqBtn = hasRequested
+            ? '<button class="capture-icon-btn ' + (it.requested ? 'requested' : '') + '" data-act="req" title="Mark as requested in Claude feedback">' + (it.requested ? '✓' : '○') + '</button>'
+            : '';
+          row.innerHTML =
+            '<div class="capture-item-body">' +
+              '<div>' + escapeHtml(it.text) + '</div>' +
+              '<div class="capture-item-meta">' + escapeHtml(fmtTime(it.ts)) + '</div>' +
+            '</div>' +
+            '<div class="capture-item-actions">' +
+              reqBtn +
+              '<button class="capture-icon-btn delete" data-act="del" title="Delete">✕</button>' +
+            '</div>';
+          row.querySelector('[data-act="del"]').addEventListener('click', () => {
+            items.splice(idx, 1); persist(); render();
+          });
+          if (hasRequested) {
+            row.querySelector('[data-act="req"]').addEventListener('click', () => {
+              items[idx].requested = !items[idx].requested; persist(); render();
+            });
+          }
+          listEl.appendChild(row);
+        });
+      }
+      countEl.textContent = hasRequested
+        ? items.length + ' item' + (items.length === 1 ? '' : 's')
+        : items.length + ' captured';
+    }
+    function add() {
+      const v = inputEl.value.trim();
+      if (!v) return;
+      const entry = { text: v, ts: Date.now() };
+      if (hasRequested) entry.requested = false;
+      items.unshift(entry);
+      inputEl.value = '';
+      persist(); render();
+    }
+    addBtn.addEventListener('click', add);
+    inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    copyBtn.addEventListener('click', async () => {
+      if (!items.length) return;
+      const payload = copyFormat(items);
+      const originalText = copyBtn.textContent;
+      try {
+        await navigator.clipboard.writeText(payload);
+        copyBtn.classList.add('copied');
+        copyBtn.textContent = 'Copied ✓';
+      } catch {
+        copyBtn.textContent = 'Copy failed';
+      }
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.textContent = originalText;
+      }, 1600);
+    });
+    render();
+  }
+
+  makeCapture({
+    storeKey: 'scratchpad',
+    listEl: document.getElementById('scratchpad-list'),
+    inputEl: document.getElementById('scratchpad-input'),
+    addBtn: document.getElementById('scratchpad-add'),
+    copyBtn: document.getElementById('scratchpad-copy'),
+    countEl: document.getElementById('scratchpad-count'),
+    emptyText: 'Nothing captured yet. Drop a thought — it persists across reloads.',
+    hasRequested: false,
+    copyFormat: (items) => items.map(i => '- ' + i.text + '  _(' + new Date(i.ts).toISOString() + ')_').join('\n')
+  });
+
+  makeCapture({
+    storeKey: 'wishlist',
+    listEl: document.getElementById('wishlist-list'),
+    inputEl: document.getElementById('wishlist-input'),
+    addBtn: document.getElementById('wishlist-add'),
+    copyBtn: document.getElementById('wishlist-copy'),
+    countEl: document.getElementById('wishlist-count'),
+    emptyText: 'Add things you want Claude to do differently.',
+    hasRequested: true,
+    copyFormat: (items) => {
+      const lines = ['Claude customization wishlist:', ''];
+      items.forEach(i => {
+        lines.push((i.requested ? '[x]' : '[ ]') + ' ' + i.text);
+      });
+      return lines.join('\n');
+    }
+  });
+</script>
+
+</body>
+</html>

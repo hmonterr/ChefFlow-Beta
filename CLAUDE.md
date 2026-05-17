@@ -1,6 +1,8 @@
 # ChefFlow — Claude Code Operating Manual
 # v126 · Beta 2.1-Stable · Last updated 2026-05-16
 
+Project-level instructions for Claude Code sessions in this repo.
+
 ## Identity
 You are the ChefFlow Lead Software Engineer. Philosophy: surgical edits over massive rewrites.
 Stack: React (TSX), Tailwind CSS, Firebase Auth/Firestore, Gemini 2.5 Flash (@google/genai),
@@ -24,6 +26,35 @@ Radix UI, Lucide Icons, Sonner, Framer Motion — running inside a Wix Velo ifra
 - **Wix stack is a separate deferred project.** Do not touch it.
 
 ---
+
+## ChefFlow Session Init (mandatory — run at the start of every session)
+
+At session start, before any task, run these three reads **in parallel**. Do not ask the user if you should — just do it.
+
+```
+Read dashboard/index.html                                         # agent status + roadmap
+Notion fetch 34a8323a-3222-80a6-8406-fbc811b4d0e3               # [LIVE] ChefFlow Manifest
+Notion fetch 1bae33c60e91414aa2355d4c7628be29 (Bug Vault DB)     # open bugs
+```
+
+After reading, output a one-block summary:
+- **Version** — from manifest (e.g. v126)
+- **Agents** — status pill for each (Live / Setup / Retired)
+- **Open bugs** — count + any P0/P1 names
+- **Roadmap** — which week is active, what's checked vs unchecked
+
+This replaces the generic global session-init question for ChefFlow sessions. Still confirm the project directory per global CLAUDE.md, but skip "what are we working on?" — the summary answers it.
+
+### Notion IDs (hardcoded — do not look these up, use as-is)
+
+| Resource | Notion ID |
+|---|---|
+| [LIVE] ChefFlow Manifest | `34a8323a-3222-80a6-8406-fbc811b4d0e3` |
+| Bug Vault DB | `1bae33c60e91414aa2355d4c7628be29` |
+| Task Queue (Feature Ledger) | `1057d26d826e440684b5b0867ddc0fd7` |
+| Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
+| ChefFlow HQ | `3618323a-3222-8194-ba96-d96db8502a30` |
+| Prompt Log DB (a5) | `6e3238da-8759-4bd8-8bd3-58c9bdd19998` |
 
 ## Stack context
 
@@ -77,13 +108,22 @@ When a user request matches one of these scenarios, invoke the corresponding ruf
 5. **Post-merge** — `/land-and-deploy` (Vercel / Firebase) → `/canary` to monitor live.
 6. **Weekly** — `/retro` for retrospective; `/document-release` after any shipped feature.
 
+## Dashboard sync rule (always)
+
+Any time Notion task/agent/roadmap statuses change during a session, update `dashboard/index.html` **in the same pass** — not later, not in a follow-up. The two must stay in lockstep.
+
+Concretely: when a task is marked done in Notion (Task Queue, Bug Vault, or Ops Log), or an agent status changes, or a roadmap week flips state — immediately update the corresponding HTML in `dashboard/index.html`:
+- Agent checklist item done → `class="check-item"` → `class="check-item done"`, `check-box unchecked` → `check-box checked">✓`
+- Agent status pill → match actual state (`status-setup` / `status-live` / `status-retired`)
+- Week task done → `class="week-task"` → `class="week-task done"`, empty `wt-check` → `wt-check">✓`
+- Week complete → `tl-active` → `tl-done`, `wt-active">Active Now` → `wt-done">Complete`
+- Week becomes active → `tl-next` → `tl-active`, `wt-next">Upcoming` → `wt-active">Active Now`
+
+Commit `dashboard/index.html` together with whatever else changed that session. Never leave the dashboard stale.
+
 ## Safety defaults
 
 - Always `/guard` when touching prod-adjacent code (Firebase rules, deploy configs, Discord production tokens).
 - claude-mem is the source of truth for "what did we change last week" — do not re-derive from git unless asked.
 - Notion is the source of truth for tasks and bugs (Bug Vault / Task Queue / Ops Log).
 - The PostToolUse hook in `.claude/settings.json` auto-runs `/audit` on `firestore.rules` edits — don't disable it without a reason.
-
----
-
-## File Map
