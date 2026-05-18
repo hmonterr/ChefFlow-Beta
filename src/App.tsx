@@ -1761,7 +1761,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         )}
 
 {/* Kanban: 5 columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits cleanly inside the max-w-7xl (1280px) centered container with ~32px margin per side at wide viewports */}
-        <div className="flex gap-6 w-full max-w-7xl mx-auto overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain no-scrollbar">
+        <div className="flex gap-6 w-full max-w-7xl mx-auto overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
