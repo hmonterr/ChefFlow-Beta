@@ -1760,8 +1760,9 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         )}
 
-{/* Kanban: 5 columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits cleanly inside the max-w-7xl (1280px) centered container with ~32px margin per side at wide viewports */}
-        <div className="flex gap-6 w-full max-w-7xl mx-auto overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 flex-1 min-h-0 overscroll-contain custom-scrollbar">
+{/* Kanban: 5 main columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits inside max-w-7xl (1280px) at wide viewports. Wrapped in a relative container so we can layer a right-edge fade gradient as a discoverability hint for any overflow columns (PROTEIN, NEEDS SORTING) beyond PRODUCE. The gradient says "more content this way" without adding chrome. */}
+        <div className="relative max-w-7xl mx-auto w-full flex-1 min-h-0">
+        <div className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
@@ -1946,6 +1947,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               );
             })}
           </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#F8F9FA] to-transparent" aria-hidden="true" />
+        </div>
       </main>
 
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
