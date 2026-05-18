@@ -1356,7 +1356,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                   <Button 
                     variant={unitSystem === 'Metric' ? 'default' : 'ghost'} 
                     size="sm"
-                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Metric' ? 'bg-[#1A1A1A] text-white shadow-sm hover:bg-[#1A1A1A]' : 'text-gray-500'}`}
+                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Metric' ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-500' : 'text-gray-500'}`}
                     onClick={() => setUnitSystem('Metric')}
                   >
                     METRIC
@@ -1364,7 +1364,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                   <Button 
                     variant={unitSystem === 'Imperial' ? 'default' : 'ghost'} 
                     size="sm"
-                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Imperial' ? 'bg-[#1A1A1A] text-white shadow-sm hover:bg-[#1A1A1A]' : 'text-gray-500'}`}
+                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Imperial' ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-500' : 'text-gray-500'}`}
                     onClick={() => setUnitSystem('Imperial')}
                   >
                     IMPERIAL
@@ -1752,14 +1752,16 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         )}
 
         {processedIngredients.length === 0 && (
-          <div className="mb-4 px-2 max-w-2xl">
-            <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
-            <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+          <div className="max-w-7xl mx-auto w-full mb-4 px-2">
+            <div className="max-w-2xl">
+              <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
+              <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+            </div>
           </div>
         )}
 
-{/* Kanban: columns shrink at md (w-56) and expand at lg (w-60) so all five fit in typical Wix iframe widths without PRODUCE overflow */}
-        <div className="flex gap-6 w-full overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain no-scrollbar">
+{/* Kanban: 5 columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits cleanly inside the max-w-7xl (1280px) centered container with ~32px margin per side at wide viewports */}
+        <div className="flex gap-6 w-full max-w-7xl mx-auto overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain no-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
@@ -1767,7 +1769,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               return (
               <div
                   key={category}
-                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56 lg:w-60'}`}
+                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56'}`}
                   onDragOver={handleKanbanDragOver}
                   onDrop={(e) => handleKanbanDrop(e, category)}
                 > 
