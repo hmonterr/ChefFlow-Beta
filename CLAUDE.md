@@ -1,5 +1,5 @@
 # ChefFlow — Claude Code Operating Manual
-# v126 · Beta 2.1-Stable · Last updated 2026-05-16
+# v126 · Beta 2.1-Stable · Last updated 2026-05-17
 
 Project-level instructions for Claude Code sessions in this repo.
 
@@ -29,12 +29,13 @@ Radix UI, Lucide Icons, Sonner, Framer Motion — running inside a Wix Velo ifra
 
 ## ChefFlow Session Init (mandatory — run at the start of every session)
 
-At session start, before any task, run these three reads **in parallel**. Do not ask the user if you should — just do it.
+At session start, before any task, run these reads **in parallel**. Do not ask the user if you should — just do it.
 
 ```
-Read dashboard/index.html                                         # agent status + roadmap
-Notion fetch 34a8323a-3222-80a6-8406-fbc811b4d0e3               # [LIVE] ChefFlow Manifest
-Notion fetch 1bae33c60e91414aa2355d4c7628be29 (Bug Vault DB)     # open bugs
+Notion fetch 7ef479ecde454cbfb5e9fc21d2afedaf                    # Agents DB — status of each agent
+Notion fetch 46b3f143519b4509bc7bbf2d388f6edc                    # Roadmap DB — week phase + items
+Notion fetch 34a8323a-3222-80a6-8406-fbc811b4d0e3                # [LIVE] ChefFlow Manifest (version + MPU)
+Notion fetch 1bae33c60e91414aa2355d4c7628be29                    # Bug Vault DB — open bugs
 ```
 
 After reading, output a one-block summary:
@@ -50,11 +51,18 @@ This replaces the generic global session-init question for ChefFlow sessions. St
 | Resource | Notion ID |
 |---|---|
 | [LIVE] ChefFlow Manifest | `34a8323a-3222-80a6-8406-fbc811b4d0e3` |
-| Bug Vault DB | `1bae33c60e91414aa2355d4c7628be29` |
-| Task Queue (Feature Ledger) | `1057d26d826e440684b5b0867ddc0fd7` |
-| Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
 | ChefFlow HQ | `3618323a-3222-8194-ba96-d96db8502a30` |
+| Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
 | Prompt Log DB (a5) | `6e3238da-8759-4bd8-8bd3-58c9bdd19998` |
+| Bug Vault DB *(dashboard: bugs)* | `1bae33c60e91414aa2355d4c7628be29` |
+| Task Queue *(dashboard: features)* | `1057d26d826e440684b5b0867ddc0fd7` |
+| SOPs DB *(dashboard: sops)* | `11009a9ca228449a92da806ad806cc65` |
+| Roadmap DB *(dashboard: roadmap)* | `46b3f143519b4509bc7bbf2d388f6edc` |
+| Agents DB *(dashboard: agents)* | `7ef479ecde454cbfb5e9fc21d2afedaf` |
+| Scratchpad DB *(dashboard: scratchpad)* | `4cdc9baa19c64eb689c06a2ac1dd39b6` |
+| Wishlist DB *(dashboard: wishlist)* | `c2a113bc4dc9478ab3857b6ac0d989f5` |
+
+The seven DBs tagged *(dashboard: …)* back the live ChefFlow dashboard at https://chefflow-dashboard.vercel.app via its `/api/sync` serverless function. Updates to those DBs reflect on the dashboard on next pull/refresh.
 
 ## Stack context
 
@@ -108,18 +116,23 @@ When a user request matches one of these scenarios, invoke the corresponding ruf
 5. **Post-merge** — `/land-and-deploy` (Vercel / Firebase) → `/canary` to monitor live.
 6. **Weekly** — `/retro` for retrospective; `/document-release` after any shipped feature.
 
-## Dashboard sync rule (always)
+## Canonical dashboard
 
-Any time Notion task/agent/roadmap statuses change during a session, update `dashboard/index.html` **in the same pass** — not later, not in a follow-up. The two must stay in lockstep.
+The live ChefFlow dashboard is **https://chefflow-dashboard.vercel.app**. It is the only dashboard. Notion is the only source of truth for what it displays.
 
-Concretely: when a task is marked done in Notion (Task Queue, Bug Vault, or Ops Log), or an agent status changes, or a roadmap week flips state — immediately update the corresponding HTML in `dashboard/index.html`:
-- Agent checklist item done → `class="check-item"` → `class="check-item done"`, `check-box unchecked` → `check-box checked">✓`
-- Agent status pill → match actual state (`status-setup` / `status-live` / `status-retired`)
-- Week task done → `class="week-task"` → `class="week-task done"`, empty `wt-check` → `wt-check">✓`
-- Week complete → `tl-active` → `tl-done`, `wt-active">Active Now` → `wt-done">Complete`
-- Week becomes active → `tl-next` → `tl-active`, `wt-next">Upcoming` → `wt-active">Active Now`
+- **Source repo:** `github.com/hmonterr/chefflow-dashboard` (private; auto-deploys to Vercel on every push to `main`). Independent from this repo.
+- **Local clone of the dashboard repo:** `~/OneDrive/Documents/Coding/Projects/ChefFlow Dash/`
+- **Architecture:** static `index.html` UI shell + Vercel serverless function `api/sync.js` that proxies the Notion API. `NOTION_TOKEN` is configured as a Vercel env var. Data is read from Notion at view-time.
+- **UI sync controls:** the dashboard has `↓ pull` and `↑ push` buttons. Pull reads from Notion; push writes UI edits back to Notion.
 
-Commit `dashboard/index.html` together with whatever else changed that session. Never leave the dashboard stale.
+### When state changes
+
+- **Agent status, roadmap phase, bug, feature, SOP, scratchpad, wishlist:** update the corresponding Notion DB (see Notion IDs table above). The dashboard reflects on next pull. **Do not hand-edit any HTML.** There is no static snapshot to keep in sync — the in-repo `dashboard/` folder was removed on 2026-05-17 along with the old hand-edit sync rule.
+- **Dashboard UI / serverless function changes** (new sections, layout, JS behavior): branch + PR in the `chefflow-dashboard` repo, not here. Vercel auto-deploys on merge.
+
+### Why this matters
+
+Earlier sessions maintained a redundant static `ChefFlow-Beta/dashboard/index.html` and a "Dashboard sync rule" that demanded hand-flipping CSS class names whenever Notion changed. The hosted dashboard was never reading that file — it was always reading Notion via `/api/sync`. The static copy was busywork pretending to be the source of truth. It has been deleted.
 
 ## Safety defaults
 

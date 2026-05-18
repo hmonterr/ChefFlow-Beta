@@ -5,6 +5,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+    --color-orange-50:  #FDF4EE;
+    --color-orange-100: #FAE4D5;
+    --color-orange-200: #F5C9AC;
+    --color-orange-300: #F0B795;
+    --color-orange-400: #EDA886;
+    --color-orange-500: #E89765;
+    --color-orange-600: #D7855A;
+    --color-orange-700: #B96E47;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
