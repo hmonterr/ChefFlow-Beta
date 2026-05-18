@@ -1646,7 +1646,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: recipe.isActive ? 1 : 0.5 }}
                 exit={{ scale: 0.8, opacity: 0 }}
-                className={`flex items-center gap-2 bg-white border px-3 py-1.5 rounded-full shadow-sm transition-all ${
+                className={`flex items-center gap-2 bg-white border px-3 py-1.5 rounded-2xl transition-all ${
                   recipe.isActive ? 'border-gray-200 hover:border-orange-200' : 'border-gray-100 bg-gray-50/50'
                 }`}
               >
@@ -1751,16 +1751,23 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         )}
 
-{/* Added no-scrollbar to hide the clunky horizontal track */}
+        {processedIngredients.length === 0 && (
+          <div className="mb-4 px-2 max-w-2xl">
+            <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
+            <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+          </div>
+        )}
+
+{/* Kanban: columns shrink at md (w-56) and expand at lg (w-60) so all five fit in typical Wix iframe widths without PRODUCE overflow */}
         <div className="flex gap-6 w-full overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain no-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
 
               return (
-              <div 
-                  key={category} 
-                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-64'}`}
+              <div
+                  key={category}
+                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56 lg:w-60'}`}
                   onDragOver={handleKanbanDragOver}
                   onDrop={(e) => handleKanbanDrop(e, category)}
                 > 
@@ -2066,7 +2073,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex flex-col min-w-0">
                           <span className="text-sm font-black text-gray-800 truncate">{menu.title}</span>
-                          <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider mt-1 bg-orange-50 w-fit px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider mt-1 bg-orange-50 w-fit px-2 py-0.5 rounded-md">
                             {menu.recipeIds?.length || 0} Recipes
                           </span>
                         </div>
