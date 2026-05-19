@@ -1987,7 +1987,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                                   )}
                                   
                                   {/* Action Buttons Grouped Together */}
-                                  <div className="flex items-center opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 gap-0.5">
+                                  <div className="flex items-center opacity-100 transition-opacity shrink-0 gap-0.5">
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); toggleHideQuantity(item.id); }}
                                       className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-md transition-all duration-200"
