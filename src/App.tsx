@@ -138,6 +138,96 @@ function AppContent() {
   // actual writeBatch delete only fires on user confirm.
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // --- KANBAN GESTURE HANDLER ---
+  // Replaces native scroll inertia with one-column-per-gesture snap behavior on
+  // mobile + tablet (<lg viewport). Trackpad swipes and touchscreen flicks both
+  // route through here. Desktop (lg+) keeps native free-scroll for mouse wheels.
+  // Chef-founder's ask: "feel like swiping cards in an Instagram post."
+  const kanbanRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = kanbanRef.current;
+    if (!container) return;
+
+    let isAnimating = false;
+    let wheelAccumulator = 0;
+    let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+    let touchStartX = 0;
+    const lgBreakpoint = window.matchMedia('(max-width: 1023px)');
+
+    const getColumnStep = () => {
+      const firstCol = container.querySelector('[class*="snap-start"]') as HTMLElement | null;
+      if (!firstCol) return container.clientWidth;
+      return firstCol.offsetWidth + 24; // column width + gap-6
+    };
+
+    const snapBy = (direction: number) => {
+      if (isAnimating) return;
+      const step = getColumnStep();
+      if (!step) return;
+      const currentIndex = Math.round(container.scrollLeft / step);
+      const maxIndex = Math.max(0, Math.floor((container.scrollWidth - container.clientWidth) / step));
+      const targetIndex = Math.max(0, Math.min(maxIndex, currentIndex + direction));
+      isAnimating = true;
+      container.scrollTo({ left: targetIndex * step, behavior: 'smooth' });
+      setTimeout(() => { isAnimating = false; }, 400);
+    };
+
+    const snapToNearest = () => {
+      if (isAnimating) return;
+      const step = getColumnStep();
+      if (!step) return;
+      const currentIndex = Math.round(container.scrollLeft / step);
+      isAnimating = true;
+      container.scrollTo({ left: currentIndex * step, behavior: 'smooth' });
+      setTimeout(() => { isAnimating = false; }, 400);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!lgBreakpoint.matches) return;
+      touchStartX = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!lgBreakpoint.matches || isAnimating) return;
+      const delta = touchStartX - e.changedTouches[0].clientX;
+      const SWIPE_THRESHOLD = 40; // px — below this, snap back to current
+      if (Math.abs(delta) < SWIPE_THRESHOLD) {
+        snapToNearest();
+        return;
+      }
+      snapBy(delta > 0 ? 1 : -1);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!lgBreakpoint.matches) return;
+      // Only intercept dominantly-horizontal scrolls (trackpad two-finger swipe)
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      if (isAnimating) return;
+      wheelAccumulator += e.deltaX;
+      if (wheelTimer) clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => {
+        const WHEEL_THRESHOLD = 30;
+        if (Math.abs(wheelAccumulator) >= WHEEL_THRESHOLD) {
+          snapBy(wheelAccumulator > 0 ? 1 : -1);
+        }
+        wheelAccumulator = 0;
+      }, 80);
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelTimer) clearTimeout(wheelTimer);
+    };
+  }, []);
+
   // Initialize Hero state based on screen size
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
@@ -1769,7 +1859,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
 {/* Kanban: 5 main columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits inside max-w-7xl (1280px) at wide viewports. Wrapped in a relative container so we can layer a right-edge fade gradient as a discoverability hint for any overflow columns (PROTEIN, NEEDS SORTING) beyond PRODUCE. The gradient says "more content this way" without adding chrome. */}
         <div className="relative max-w-7xl mx-auto w-full flex-1 min-h-0">
-        <div className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory lg:snap-none scroll-smooth scroll-pl-4 md:scroll-pl-8 pb-4 overscroll-contain custom-scrollbar">
+        <div ref={kanbanRef} className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory lg:snap-none scroll-smooth scroll-pl-4 md:scroll-pl-8 pb-4 overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
