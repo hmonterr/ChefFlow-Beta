@@ -1659,7 +1659,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         </header>
         
-        <main className={`flex-1 flex flex-col p-4 md:p-8 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
+        <main className={`flex-1 min-h-0 flex flex-col p-4 md:p-8 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
           <div className="fixed inset-0 z-[100] bg-white/50 backdrop-blur-sm flex items-center justify-center">
             <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
               <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
@@ -1857,8 +1857,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         )}
 
-{/* Kanban: 5 main columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits inside max-w-7xl (1280px) at wide viewports. Wrapped in a relative container so we can layer a right-edge fade gradient as a discoverability hint for any overflow columns (PROTEIN, NEEDS SORTING) beyond PRODUCE. The gradient says "more content this way" without adding chrome. */}
-        <div className="relative max-w-7xl mx-auto w-full flex-1 min-h-0">
+{/* Kanban: 7 categories × w-56 (224px) + 6 × gap-6 (24px) = 1712px total. max-w-[1750px] gives ~38px buffer; all columns fit without horizontal scroll on viewports ≥ 1814px (account for main's p-8 padding). Below that width, overflow-x-auto on the inner container kicks in. */}
+        <div className="relative max-w-[1750px] mx-auto w-full flex-1 min-h-0">
         <div ref={kanbanRef} className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory lg:snap-none scroll-smooth scroll-pl-4 md:scroll-pl-8 pb-4 overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
