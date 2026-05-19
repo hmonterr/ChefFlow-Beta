@@ -31,6 +31,8 @@ export async function extractRecipeData(input: string | { data: string; mimeType
   - FLOURS: ALWAYS invert flour types. "Bread flour" MUST become "flour, bread" and "almond flour" MUST become "flour, almond". [cite: 2]
   - COMPOUND NOUNS: DO NOT invert compound nouns (e.g., "baking soda", "olive oil", "cream cheese"). [cite: 2]
   - EXTRACTS: "Vanilla" is the ingredient, "extract" is the state. Format "vanilla extract" as "vanilla, extract". [cite: 2]
+  - BUTTER PREP PATTERNS (CRITICAL — beats COMPOUND NOUNS for butter): When butter is listed with a state-of-prep descriptor — "brown", "browned", "melted", "softened", "chilled", "room-temperature", "whipped", "creamed", "cooled" — the descriptor is PREP, not a retail variant. Output the canonical ingredient ("butter, unsalted" by default) and discard the prep word from the name. Retail descriptors for butter that ARE preserved via standard noun-first inversion: "salted", "unsalted", "European-style", "cultured". A dash, em-dash, or hyphen separating butter from a trailing word ("Butter — Brown, cool") signals the trailing text is prep.
+  - BUTTER DEFAULT: When butter is listed without an explicit salted/unsalted indicator, default the output name to "butter, unsalted".
   - DUAL-UNIT PARSING: If an ingredient lists both a volume and a weight, prioritize the weight (grams) EXCEPT for liquids (milk, cream, water, oil, buttermilk, stock, broth), which MUST remain in volume (ml, cups, fl oz, etc). [cite: 2]
   - SUGAR NAMING: If the recipe specifies "sugar" or "granulated sugar" without a specific type, format it strictly as "sugar, white". [cite: 2]
   - PARENTHETICAL CLEANUP: Remove any notes in parentheses from the final name. [cite: 2]
