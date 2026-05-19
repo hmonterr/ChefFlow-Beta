@@ -2504,8 +2504,25 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               {guardianUI?.items.map((item, idx) => (
                 <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${item.isAmbiguous ? 'bg-orange-50/50 border-orange-200 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
-                    {item.isAmbiguous && <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mt-0.5">{item.ambiguityReason || "Needs clarification"}</p>}
+                    {item.isAmbiguous ? (
+                      <Input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setGuardianUI(prev => {
+                            if (!prev) return prev;
+                            const newItems = [...prev.items];
+                            newItems[idx] = { ...newItems[idx], name: val };
+                            return { ...prev, items: newItems };
+                          });
+                        }}
+                        className="h-8 text-sm font-bold text-gray-900 bg-white border-orange-200 focus:ring-orange-200 px-2"
+                      />
+                    ) : (
+                      <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                    )}
+                    {item.isAmbiguous && <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mt-1">{item.ambiguityReason || "Needs clarification"}</p>}
                   </div>
                   
                   {item.isAmbiguous ? (
@@ -2566,9 +2583,10 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 className="bg-orange-500 hover:bg-orange-600 text-white font-black text-xs tracking-widest uppercase shadow-md shadow-orange-100"
                 onClick={() => {
                   if (resolveGuardianRef.current) {
-                    // Sanitize empty string values back to 1 to prevent NaN crashes
+                    // Sanitize: empty quantity → 1 (NaN guard); trim edited name
                     const sanitizedItems = guardianUI.items.map(i => ({
                       ...i,
+                      name: typeof i.name === 'string' ? i.name.trim() || i.name : i.name,
                       quantity: Number(i.quantity) || 1
                     }));
                     resolveGuardianRef.current(sanitizedItems);
