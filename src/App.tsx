@@ -1769,7 +1769,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
 {/* Kanban: 5 main columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits inside max-w-7xl (1280px) at wide viewports. Wrapped in a relative container so we can layer a right-edge fade gradient as a discoverability hint for any overflow columns (PROTEIN, NEEDS SORTING) beyond PRODUCE. The gradient says "more content this way" without adding chrome. */}
         <div className="relative max-w-7xl mx-auto w-full flex-1 min-h-0">
-        <div className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 overscroll-contain custom-scrollbar">
+        <div className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory lg:snap-none scroll-smooth scroll-pl-4 md:scroll-pl-8 pb-4 overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
@@ -1777,7 +1777,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               return (
               <div
                   key={category}
-                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56'}`}
+                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always lg:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56'}`}
                   onDragOver={handleKanbanDragOver}
                   onDrop={(e) => handleKanbanDrop(e, category)}
                 > 
