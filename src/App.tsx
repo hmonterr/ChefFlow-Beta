@@ -1777,7 +1777,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               return (
               <div
                   key={category}
-                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always lg:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56'}`}
+                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always lg:snap-none ${isCollapsed ? 'w-[24px]' : 'w-full md:w-56'}`}
                   onDragOver={handleKanbanDragOver}
                   onDrop={(e) => handleKanbanDrop(e, category)}
                 > 
