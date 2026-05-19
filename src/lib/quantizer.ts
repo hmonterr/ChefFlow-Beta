@@ -794,8 +794,12 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
           item.name = NOUN_INVERSIONS[mappedMatch]; 
           key = item.name.toLowerCase();            
        } else {
-          // --- 3. THE FALLBACK: Standardize standard nouns (Butter, salted -> butter) ---
-          key = cleanIngredientName(rawName).toLowerCase().split(',')[0].trim();
+          // --- 3. THE FALLBACK: Use the full cleaned name as the key so distinct
+          //     descriptors stay distinct ("sugar, brown" ≠ "sugar, white",
+          //     "butter, salted" ≠ "butter, unsalted"). The prompt layer already
+          //     dedupes generic + quantified variants, so dropping the comma-strip
+          //     here does not regress that path.
+          key = cleanIngredientName(rawName).toLowerCase().trim();
        }
     }
 
