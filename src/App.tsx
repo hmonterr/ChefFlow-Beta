@@ -131,6 +131,13 @@ function AppContent() {
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
 
+  // --- CLEAR ALL GUARDIAN ---
+  // Confirmation gate for the destructive Clear All Items action. Manifest absolute
+  // rule: "Clear All Guardian: Passive intercept modal preventing accidental wiping
+  // of the active board." Settings → Clear All Items now opens this confirm; the
+  // actual writeBatch delete only fires on user confirm.
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   // Initialize Hero state based on screen size
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
@@ -1385,7 +1392,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                     <DialogContent>
                       <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
-                        <Button variant="destructive" className="w-full" onClick={clearAll}>Clear All Items</Button>
+                        <Button variant="ghost" className="w-full text-[#C6727A] hover:bg-[#C6727A]/8 hover:text-[#9C5860] font-semibold" onClick={() => { setIsSettingsOpen(false); setShowClearConfirm(true); }}>Clear All Items</Button>
                         <Button variant="outline" className="w-full" onClick={exportPDF}>Export to PDF</Button>
 
                         <div className="pt-2">
@@ -1501,7 +1508,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 <DialogContent>
                   <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                   <div className="space-y-4 py-4">
-                    <Button variant="destructive" className="w-full" onClick={clearAll}>Clear All Items</Button>
+                    <Button variant="ghost" className="w-full text-[#C6727A] hover:bg-[#C6727A]/8 hover:text-[#9C5860] font-semibold" onClick={() => { setIsSettingsOpen(false); setShowClearConfirm(true); }}>Clear All Items</Button>
                     <Button variant="outline" className="w-full" onClick={exportPDF}>Export to PDF</Button>
                     
                     <div className="pt-2">
@@ -2486,6 +2493,50 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
             </div>
           </DialogContent>
         </DialogPortal>
+      </Dialog>
+
+      {/* --- CLEAR ALL GUARDIAN MODAL ---
+          Passive intercept per manifest absolute rule. Both Settings menus
+          (mobile + desktop) close themselves and open this confirm instead
+          of running clearAll() directly. Cancel returns to safe state.
+          Destructive action uses DESIGN.md priority-critical token (#C6727A,
+          brick-red), text-only treatment to avoid loud filled-red. */}
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent id="chefflow-root" className="w-[95vw] max-w-sm rounded-2xl p-6 shadow-2xl z-[10000] border-none">
+          <DialogHeader className="mb-2 text-left">
+            <DialogTitle className="text-lg font-bold text-gray-900 tracking-tight">
+              Clear all items?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 leading-relaxed py-2">
+            This permanently deletes every active recipe and ingredient on your kanban. Saved Library recipes are unaffected.
+          </p>
+          <div className="flex gap-2 justify-end pt-4">
+            <Button
+              variant="ghost"
+              className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 font-medium"
+              onClick={() => setShowClearConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-[#C6727A] hover:bg-[#C6727A]/10 hover:text-[#9C5860] font-semibold"
+              onClick={async () => {
+                try {
+                  setShowClearConfirm(false);
+                  await clearAll();
+                } catch (error) {
+                  // clearAll already routes through handleFirestoreError;
+                  // try/catch here per CLAUDE.md absolute rule on top-level logic.
+                  console.error('Clear All confirm failed:', error);
+                }
+              }}
+            >
+              Clear All Items
+            </Button>
+          </div>
+        </DialogContent>
       </Dialog>
 
     </div>
