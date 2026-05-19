@@ -141,27 +141,32 @@
 }
 
 @layer utilities {
-  /* Auto-hiding vertical scrollbar (Visible only on hover) */
+  /* Always-visible faint scrollbar per DESIGN.md §10.
+     3px slim track, rgba(128,128,128,0.18) thumb that's always visible (not
+     just on hover) so users discover the scroll affordance without needing
+     to mouse over the kanban first. Thumb deepens slightly on hover.
+     Applies to: kanban (line 1764), inner column scroll (1815), and the
+     three dialogs (2171, 2319, 2403). All 5 surfaces match DESIGN.md spec. */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
+    scrollbar-color: rgba(128, 128, 128, 0.18) transparent;
   }
   .custom-scrollbar:hover {
-    scrollbar-color: #d1d5db transparent;
+    scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
   }
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 3px;
+    height: 3px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: transparent;
-    border-radius: 9999px;
+    background-color: rgba(128, 128, 128, 0.18);
+    border-radius: 3px;
   }
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-    background-color: #d1d5db; /* Tailwind gray-300 */
+    background-color: rgba(128, 128, 128, 0.35);
   }
 
   /* Completely invisible scrollbar (For horizontal snap-scrolling) */

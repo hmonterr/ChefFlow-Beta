@@ -131,6 +131,103 @@ function AppContent() {
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
 
+  // --- CLEAR ALL GUARDIAN ---
+  // Confirmation gate for the destructive Clear All Items action. Manifest absolute
+  // rule: "Clear All Guardian: Passive intercept modal preventing accidental wiping
+  // of the active board." Settings → Clear All Items now opens this confirm; the
+  // actual writeBatch delete only fires on user confirm.
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // --- KANBAN GESTURE HANDLER ---
+  // Replaces native scroll inertia with one-column-per-gesture snap behavior on
+  // mobile + tablet (<lg viewport). Trackpad swipes and touchscreen flicks both
+  // route through here. Desktop (lg+) keeps native free-scroll for mouse wheels.
+  // Chef-founder's ask: "feel like swiping cards in an Instagram post."
+  const kanbanRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = kanbanRef.current;
+    if (!container) return;
+
+    let isAnimating = false;
+    let wheelAccumulator = 0;
+    let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+    let touchStartX = 0;
+    const lgBreakpoint = window.matchMedia('(max-width: 1023px)');
+
+    const getColumnStep = () => {
+      const firstCol = container.querySelector('[class*="snap-start"]') as HTMLElement | null;
+      if (!firstCol) return container.clientWidth;
+      return firstCol.offsetWidth + 24; // column width + gap-6
+    };
+
+    const snapBy = (direction: number) => {
+      if (isAnimating) return;
+      const step = getColumnStep();
+      if (!step) return;
+      const currentIndex = Math.round(container.scrollLeft / step);
+      const maxIndex = Math.max(0, Math.floor((container.scrollWidth - container.clientWidth) / step));
+      const targetIndex = Math.max(0, Math.min(maxIndex, currentIndex + direction));
+      isAnimating = true;
+      container.scrollTo({ left: targetIndex * step, behavior: 'smooth' });
+      setTimeout(() => { isAnimating = false; }, 200);
+    };
+
+    const snapToNearest = () => {
+      if (isAnimating) return;
+      const step = getColumnStep();
+      if (!step) return;
+      const currentIndex = Math.round(container.scrollLeft / step);
+      isAnimating = true;
+      container.scrollTo({ left: currentIndex * step, behavior: 'smooth' });
+      setTimeout(() => { isAnimating = false; }, 200);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!lgBreakpoint.matches) return;
+      touchStartX = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!lgBreakpoint.matches || isAnimating) return;
+      const delta = touchStartX - e.changedTouches[0].clientX;
+      const SWIPE_THRESHOLD = 40; // px — below this, snap back to current
+      if (Math.abs(delta) < SWIPE_THRESHOLD) {
+        snapToNearest();
+        return;
+      }
+      snapBy(delta > 0 ? 1 : -1);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (!lgBreakpoint.matches) return;
+      // Only intercept dominantly-horizontal scrolls (trackpad two-finger swipe)
+      if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      if (isAnimating) return;
+      wheelAccumulator += e.deltaX;
+      if (wheelTimer) clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => {
+        const WHEEL_THRESHOLD = 30;
+        if (Math.abs(wheelAccumulator) >= WHEEL_THRESHOLD) {
+          snapBy(wheelAccumulator > 0 ? 1 : -1);
+        }
+        wheelAccumulator = 0;
+      }, 16);
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelTimer) clearTimeout(wheelTimer);
+    };
+  }, []);
+
   // Initialize Hero state based on screen size
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
@@ -1356,7 +1453,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                   <Button 
                     variant={unitSystem === 'Metric' ? 'default' : 'ghost'} 
                     size="sm"
-                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Metric' ? 'bg-[#1A1A1A] text-white shadow-sm hover:bg-[#1A1A1A]' : 'text-gray-500'}`}
+                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Metric' ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-500' : 'text-gray-500'}`}
                     onClick={() => setUnitSystem('Metric')}
                   >
                     METRIC
@@ -1364,7 +1461,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                   <Button 
                     variant={unitSystem === 'Imperial' ? 'default' : 'ghost'} 
                     size="sm"
-                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Imperial' ? 'bg-[#1A1A1A] text-white shadow-sm hover:bg-[#1A1A1A]' : 'text-gray-500'}`}
+                    className={`flex-1 text-[10px] font-bold h-full ${unitSystem === 'Imperial' ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-500' : 'text-gray-500'}`}
                     onClick={() => setUnitSystem('Imperial')}
                   >
                     IMPERIAL
@@ -1385,7 +1482,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                     <DialogContent>
                       <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                       <div className="space-y-4 py-4">
-                        <Button variant="destructive" className="w-full" onClick={clearAll}>Clear All Items</Button>
+                        <Button variant="ghost" className="w-full text-[#C6727A] hover:bg-[#C6727A]/8 hover:text-[#9C5860] font-semibold" onClick={() => { setIsSettingsOpen(false); setShowClearConfirm(true); }}>Clear All Items</Button>
                         <Button variant="outline" className="w-full" onClick={exportPDF}>Export to PDF</Button>
 
                         <div className="pt-2">
@@ -1501,7 +1598,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 <DialogContent>
                   <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                   <div className="space-y-4 py-4">
-                    <Button variant="destructive" className="w-full" onClick={clearAll}>Clear All Items</Button>
+                    <Button variant="ghost" className="w-full text-[#C6727A] hover:bg-[#C6727A]/8 hover:text-[#9C5860] font-semibold" onClick={() => { setIsSettingsOpen(false); setShowClearConfirm(true); }}>Clear All Items</Button>
                     <Button variant="outline" className="w-full" onClick={exportPDF}>Export to PDF</Button>
                     
                     <div className="pt-2">
@@ -1752,14 +1849,17 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         )}
 
         {processedIngredients.length === 0 && (
-          <div className="mb-4 px-2 max-w-2xl">
-            <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
-            <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+          <div className="max-w-7xl mx-auto w-full mb-4 px-2">
+            <div className="max-w-2xl">
+              <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
+              <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+            </div>
           </div>
         )}
 
-{/* Kanban: columns shrink at md (w-56) and expand at lg (w-60) so all five fit in typical Wix iframe widths without PRODUCE overflow */}
-        <div className="flex gap-6 w-full overflow-x-auto snap-x snap-mandatory md:snap-none scroll-smooth pb-4 h-[calc(100dvh-220px)] overscroll-contain no-scrollbar">
+{/* Kanban: 5 main columns × w-56 (224px) + 4 × gap-6 (24px) = 1216px total, fits inside max-w-7xl (1280px) at wide viewports. Wrapped in a relative container so we can layer a right-edge fade gradient as a discoverability hint for any overflow columns (PROTEIN, NEEDS SORTING) beyond PRODUCE. The gradient says "more content this way" without adding chrome. */}
+        <div className="relative max-w-7xl mx-auto w-full flex-1 min-h-0">
+        <div ref={kanbanRef} className="flex gap-6 w-full h-full overflow-x-auto snap-x snap-mandatory lg:snap-none scroll-smooth scroll-pl-4 md:scroll-pl-8 pb-4 overscroll-contain custom-scrollbar">
           {sortedCategories.map((category) => {
               const items = processedIngredients.filter(i => i.category === category);
               const isCollapsed = collapsedCategories.has(category);
@@ -1767,7 +1867,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               return (
               <div
                   key={category}
-                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always md:snap-none ${isCollapsed ? 'w-[24px]' : 'w-[85vw] md:w-56 lg:w-60'}`}
+                  className={`flex-shrink-0 flex flex-col gap-4 transition-all duration-300 ease-in-out h-full snap-start snap-always lg:snap-none ${isCollapsed ? 'w-[24px]' : 'w-full md:w-56'}`}
                   onDragOver={handleKanbanDragOver}
                   onDrop={(e) => handleKanbanDrop(e, category)}
                 > 
@@ -1944,6 +2044,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               );
             })}
           </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#F8F9FA] to-transparent" aria-hidden="true" />
+        </div>
       </main>
 
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
@@ -2481,6 +2583,50 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
             </div>
           </DialogContent>
         </DialogPortal>
+      </Dialog>
+
+      {/* --- CLEAR ALL GUARDIAN MODAL ---
+          Passive intercept per manifest absolute rule. Both Settings menus
+          (mobile + desktop) close themselves and open this confirm instead
+          of running clearAll() directly. Cancel returns to safe state.
+          Destructive action uses DESIGN.md priority-critical token (#C6727A,
+          brick-red), text-only treatment to avoid loud filled-red. */}
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent id="chefflow-root" className="w-[95vw] max-w-sm rounded-2xl p-6 shadow-2xl z-[10000] border-none">
+          <DialogHeader className="mb-2 text-left">
+            <DialogTitle className="text-lg font-bold text-gray-900 tracking-tight">
+              Clear all items?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 leading-relaxed py-2">
+            This permanently deletes every active recipe and ingredient on your kanban. Saved Library recipes are unaffected.
+          </p>
+          <div className="flex gap-2 justify-end pt-4">
+            <Button
+              variant="ghost"
+              className="text-gray-600 hover:bg-gray-100 hover:text-gray-900 font-medium"
+              onClick={() => setShowClearConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-[#C6727A] hover:bg-[#C6727A]/10 hover:text-[#9C5860] font-semibold"
+              onClick={async () => {
+                try {
+                  setShowClearConfirm(false);
+                  await clearAll();
+                } catch (error) {
+                  // clearAll already routes through handleFirestoreError;
+                  // try/catch here per CLAUDE.md absolute rule on top-level logic.
+                  console.error('Clear All confirm failed:', error);
+                }
+              }}
+            >
+              Clear All Items
+            </Button>
+          </div>
+        </DialogContent>
       </Dialog>
 
     </div>
