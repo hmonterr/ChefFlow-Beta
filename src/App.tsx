@@ -170,7 +170,7 @@ function AppContent() {
       const targetIndex = Math.max(0, Math.min(maxIndex, currentIndex + direction));
       isAnimating = true;
       container.scrollTo({ left: targetIndex * step, behavior: 'smooth' });
-      setTimeout(() => { isAnimating = false; }, 400);
+      setTimeout(() => { isAnimating = false; }, 280);
     };
 
     const snapToNearest = () => {
@@ -180,7 +180,7 @@ function AppContent() {
       const currentIndex = Math.round(container.scrollLeft / step);
       isAnimating = true;
       container.scrollTo({ left: currentIndex * step, behavior: 'smooth' });
-      setTimeout(() => { isAnimating = false; }, 400);
+      setTimeout(() => { isAnimating = false; }, 280);
     };
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -213,7 +213,7 @@ function AppContent() {
           snapBy(wheelAccumulator > 0 ? 1 : -1);
         }
         wheelAccumulator = 0;
-      }, 80);
+      }, 30);
     };
 
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
