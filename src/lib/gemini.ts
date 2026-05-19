@@ -36,7 +36,7 @@ export async function extractRecipeData(input: string | { data: string; mimeType
   - PARENTHETICAL CLEANUP: Remove any notes in parentheses from the final name. [cite: 2]
   - UNIVERSAL CAPTURE: Do NOT filter, drop, or ignore non-food items of ANY kind. Extract normally and assign to "Needs Sorting". [cite: 2]
   - CONSOLIDATE & MERGE: Combine similar ingredients if they appear multiple times. If a recipe lists a highly specific item with a quantity (e.g., "1/4 cup unsalted butter") and later lists a generic version without a quantity (e.g., "butter for brushing"), you MUST merge them by keeping the specific item and dropping the generic, unquantified duplicate.  - Omit "Water" unless it is specifically described as "Sparkling", "Distilled", or "Mineral". [cite: 2]
-  - For eggs, yolks, or whites, list the total count of eggs. [cite: 2]
+  - EGG AGGREGATION (CRITICAL): Whole eggs, egg yolks, and egg whites ALL count toward the same aggregated ingredient. Output exactly ONE entry named "egg" with quantity = (whole_eggs + yolks + whites). Do NOT emit separate JSON objects for whole eggs and yolks (or whites). Examples: recipe lists "1 egg" + "1 yolk" → output ONE entry {name:"egg", quantity:2, unit:"ea"}. Recipe lists "2 eggs" + "3 whites" → output ONE entry {name:"egg", quantity:5, unit:"ea"}. Unit MUST be "ea" — downstream logic handles carton substitution; the prompt must not emit "carton" or "pack" units for eggs. [cite: 2]
   - THE PANTRY PINCH EXCEPTION: Never flag salt or ground pepper (black/white) as ambiguous. If the quantity is vague (e.g., "to taste", "freshly ground", "a pinch"), DO NOT generate warning text. Simply assign quantity: 1, unit: "pinch", and ensure any ambiguous flags are false.
   
   
