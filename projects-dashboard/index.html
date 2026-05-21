@@ -45,6 +45,12 @@
   }
   header button:hover { border-color: var(--accent); }
   header .status { color: var(--muted); font-size: 12px; }
+  header input.filter {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font: inherit; width: 180px;
+  }
+  header input.filter:focus { outline: none; border-color: var(--accent); }
   main {
     padding: 16px 20px 80px;
     overflow-x: auto;
@@ -62,6 +68,14 @@
     border-radius: 10px;
     padding: 10px;
     min-height: 120px;
+    position: relative;
+    overflow: hidden;
+  }
+  .col::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--cat-color, var(--accent));
+    opacity: 0.85;
   }
   .col-head {
     display: flex; align-items: center; gap: 8px;
@@ -167,6 +181,7 @@
   <h1>Projects</h1>
   <span class="status" id="status">idle</span>
   <span class="spacer"></span>
+  <input class="filter" id="filter" placeholder="filter…" />
   <button id="add-btn">+ project</button>
   <button id="pull-btn">↓ pull</button>
   <button id="push-btn">↑ push</button>
@@ -214,7 +229,15 @@
 <script>
   const COLUMN_ORDER_KEY = 'projects-column-order';
   const STATUS_ORDER = ['Active', 'Idea', 'Paused', 'Shipped', 'Archived'];
-  let state = { projects: [], dirty: false, edits: {} };
+  const CATEGORY_COLORS = {
+    Content: '#6aa6ff',
+    Community: '#5ed3a0',
+    Agency: '#b48cff',
+    Engineering: '#ffa64d',
+    Personal: '#ff7eb6',
+    Ideas: '#8a93a3',
+  };
+  let state = { projects: [], dirty: false, edits: {}, filter: '' };
 
   const $ = (s) => document.querySelector(s);
   const statusEl = $('#status');
@@ -252,13 +275,21 @@
   }
 
   function render() {
-    const groups = groupByCategory(state.projects);
+    const filtered = state.filter
+      ? state.projects.filter((p) => {
+          const hay = `${p.name || ''} ${p.category || ''} ${p.status || ''} ${p.notes || ''}`.toLowerCase();
+          return hay.includes(state.filter);
+        })
+      : state.projects;
+    const groups = groupByCategory(filtered);
     const cats = columnOrder(Object.keys(groups));
     const board = $('#board');
     board.innerHTML = '';
     for (const cat of cats) {
       const col = document.createElement('div');
       col.className = 'col';
+      const color = CATEGORY_COLORS[cat];
+      if (color) col.style.setProperty('--cat-color', color);
       col.innerHTML = `
         <div class="col-head">
           <span class="col-title">${escapeHtml(cat)}</span>
@@ -268,8 +299,9 @@
       for (const p of groups[cat]) col.appendChild(renderCard(p));
       board.appendChild(col);
     }
+    const allCats = Array.from(new Set(state.projects.map((p) => p.category || 'Uncategorized')));
     const dl = $('#categories');
-    dl.innerHTML = cats.map((c) => `<option value="${escapeAttr(c)}">`).join('');
+    dl.innerHTML = allCats.map((c) => `<option value="${escapeAttr(c)}">`).join('');
   }
 
   function renderCard(p) {
@@ -374,6 +406,10 @@
     $('#edit-dialog').close();
   });
 
+  $('#filter').addEventListener('input', (e) => {
+    state.filter = e.target.value.trim().toLowerCase();
+    render();
+  });
   $('#pull-btn').addEventListener('click', pull);
   $('#push-btn').addEventListener('click', push);
   $('#add-btn').addEventListener('click', () => openEdit({}));
