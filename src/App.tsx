@@ -130,6 +130,13 @@ function AppContent() {
   const [guardianUI, setGuardianUI] = useState<{ title: string; items: any[] } | null>(null);
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
+  // Concurrency lock against bulk URL parsing. Synchronous (ref, not state)
+  // because two rapid submissions can both pass an isLoading check before
+  // setIsLoading(true) commits. Also survives the Guardian intercept's
+  // intentional setIsLoading(false) drop (see handleProcess).
+  // URL-only by design: text / image / PDF parses are user-supplied content
+  // with no third-party scraping liability and may run concurrently.
+  const isUrlParsingRef = useRef(false);
 
   // --- CLEAR ALL GUARDIAN ---
   // Confirmation gate for the destructive Clear All Items action. Manifest absolute
@@ -528,6 +535,17 @@ function AppContent() {
 
   const handleProcess = async (input: string | { data: string; mimeType: string }, type: 'text' | 'image' | 'pdf' | 'url') => {
     if (!user) return;
+    // URL-only choke point against bulk scraping: blocks a second URL
+    // parse while one is in flight. Ref check is synchronous so two
+    // concurrent submissions can't both pass. Text / image / PDF parses
+    // are user-supplied content and intentionally unconstrained here.
+    if (type === 'url') {
+      if (isUrlParsingRef.current) {
+        toast.info('Already parsing a URL — wait for it to finish.');
+        return;
+      }
+      isUrlParsingRef.current = true;
+    }
     setIsLoading(true);
 
     // TELEMETRY LOG: Extraction Attempt
@@ -628,6 +646,9 @@ function AppContent() {
     } finally {
       // 3. This will now ALWAYS run, unfreezing the UI
       setIsLoading(false);
+      // Idempotent release — safe even on text / image / PDF paths
+      // where the URL lock was never acquired.
+      isUrlParsingRef.current = false;
     }
   };
 
@@ -1378,11 +1399,10 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 }`} />
                 
                 <div className="relative flex-1 flex items-center">
-                  <Input 
-                    disabled={false} // Lab Override: Decoupled from isLoading
+                  <Input
                     placeholder={
-                      isDragging 
-                        ? "Drop recipe file here..." 
+                      isDragging
+                        ? "Drop recipe file here..."
                         : "Paste URL or add ingredient"
                     }
                     value={rawInput}
