@@ -49,63 +49,124 @@
   }
   header input.filter:focus { outline: none; border-color: var(--accent); }
   main {
-    padding: 16px 20px 80px;
+    padding: 32px 20px 80px;
     overflow-x: auto;
   }
-  .board {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 300px;
+  .orgchart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: max-content;
+  }
+  .root-node {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+  }
+  .root-node .root-sub {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .root-node::after {
+    content: '';
+    position: absolute; left: 50%; bottom: -16px;
+    width: 1px; height: 16px;
+    background: var(--line);
+  }
+  .branches {
+    display: flex;
     gap: 12px;
     align-items: start;
+    position: relative;
+    padding-top: 16px;
+  }
+  .branches::before {
+    content: '';
+    position: absolute; left: 0; right: 0; top: 16px;
+    height: 1px; background: var(--line);
   }
   .col {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    width: 280px;
     min-height: 120px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
   .col::before {
     content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    position: absolute; left: 50%; top: 0; width: 1px; height: 12px;
+    background: var(--line);
+    transform: none;
+  }
+  .branch-head {
     background: var(--cat-color, var(--accent));
-    opacity: 0.85;
-  }
-  .col-head {
+    color: #0b0d12;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 12px;
     display: flex; align-items: center; gap: 8px;
-    padding: 4px 6px 10px;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 10px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.2);
   }
-  .col-title {
+  .branch-head .col-title {
     text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #0b0d12;
+  }
+  .branch-head .col-count {
+    margin-left: auto;
+    background: rgba(11,13,18,0.18);
+    color: #0b0d12;
+    border-radius: 999px;
+    padding: 1px 8px;
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.12em;
-    color: var(--muted);
   }
-  .col-count {
-    margin-left: auto;
-    color: var(--muted);
-    font-size: 11px;
-    background: var(--panel-2);
-    border-radius: 999px;
-    padding: 2px 8px;
+  .branch-head .col-add {
+    background: rgba(11,13,18,0.18);
+    color: #0b0d12;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
   }
-  .col-add {
-    background: none; border: none; color: var(--muted);
-    cursor: pointer; padding: 2px 6px; border-radius: 4px;
-    font: inherit; font-size: 14px; line-height: 1;
+  .branch-head .col-add:hover { background: rgba(11,13,18,0.32); }
+  .trunk {
+    position: relative;
+    padding-top: 8px;
   }
-  .col-add:hover { color: var(--accent); background: var(--panel-2); }
+  .trunk::before {
+    content: '';
+    position: absolute; left: 14px; top: 0; bottom: 8px;
+    width: 1px; background: var(--line);
+  }
+  .col-head { display: none; }
   .empty-add {
-    width: 100%; text-align: center;
+    width: calc(100% - 28px); margin-left: 28px;
+    text-align: center;
     background: transparent; color: var(--muted);
     border: 1px dashed var(--line); border-radius: 6px;
-    padding: 16px 8px; cursor: pointer; font: inherit; font-size: 12px;
+    padding: 14px 8px; cursor: pointer; font: inherit; font-size: 12px;
   }
   .empty-add:hover { border-color: var(--accent); color: var(--accent); }
   .kbd {
@@ -117,13 +178,32 @@
   .card {
     background: var(--panel-2);
     border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
+    border-radius: 6px;
+    padding: 8px 10px 8px 12px;
+    margin-bottom: 6px;
+    margin-left: 28px;
     cursor: pointer;
     transition: border-color 0.1s ease;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    left: -14px; top: 18px;
+    width: 14px; height: 1px;
+    background: var(--line);
   }
   .card:hover { border-color: var(--accent); }
+  .card .star {
+    color: var(--draft);
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  .card.is-archived .star { color: var(--archived); }
+  .card.is-idea .star,
+  .card.is-draft .star { color: var(--draft); }
+  .card.is-active .star { color: var(--draft); }
+  .card.is-paused .star { color: var(--paused); }
   .card .top { display: flex; align-items: center; gap: 6px; }
   .card .type-tag {
     font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
@@ -250,7 +330,13 @@
   <button id="push-btn">↑ push</button>
 </header>
 <main>
-  <div class="board" id="board"></div>
+  <div class="orgchart">
+    <div class="root-node">
+      Claude Dashboard
+      <span class="root-sub">Agentic OS · <span id="root-count">0</span> skills</span>
+    </div>
+    <div class="branches" id="board"></div>
+  </div>
 </main>
 <div class="toast" id="toast"></div>
 
@@ -409,34 +495,43 @@
     const cats = columnOrder(Object.keys(groups));
     const board = $('#board');
     board.innerHTML = '';
+    let total = 0;
     for (const cat of cats) {
       const col = document.createElement('div');
       col.className = 'col';
       const color = CATEGORY_COLORS[cat];
       if (color) col.style.setProperty('--cat-color', color);
-      col.innerHTML = `
-        <div class="col-head">
-          <span class="col-title">${escapeHtml(cat)}</span>
-          <span class="col-count">${groups[cat].length}</span>
-          <button class="col-add" data-cat="${escapeAttr(cat)}" title="Add to ${escapeAttr(cat)}">+</button>
-        </div>
+      const head = document.createElement('div');
+      head.className = 'branch-head';
+      head.innerHTML = `
+        <span class="col-title">${escapeHtml(cat)}</span>
+        <span class="col-count">${groups[cat].length}</span>
+        <button class="col-add" data-cat="${escapeAttr(cat)}" title="Add to ${escapeAttr(cat)}">+</button>
       `;
-      for (const s of groups[cat]) col.appendChild(renderCard(s));
+      col.appendChild(head);
+      const trunk = document.createElement('div');
+      trunk.className = 'trunk';
+      for (const s of groups[cat]) trunk.appendChild(renderCard(s));
       if (groups[cat].length === 0) {
         const btn = document.createElement('button');
         btn.className = 'empty-add';
         btn.textContent = `+ add to ${cat}`;
         btn.addEventListener('click', () => openEdit({ category: cat }));
-        col.appendChild(btn);
+        trunk.appendChild(btn);
       }
-      col.querySelector('.col-add').addEventListener('click', () => openEdit({ category: cat }));
+      col.appendChild(trunk);
+      head.querySelector('.col-add').addEventListener('click', () => openEdit({ category: cat }));
       board.appendChild(col);
+      total += groups[cat].length;
     }
+    const rootCount = $('#root-count');
+    if (rootCount) rootCount.textContent = total;
   }
 
   function renderCard(s) {
     const card = document.createElement('div');
-    card.className = 'card';
+    const statusClass = `is-${String(s.status || 'idea').toLowerCase()}`;
+    card.className = `card ${statusClass}`;
     card.dataset.id = s.id;
     const integrations = (s.integrations || []).map((name) => {
       const meta = INTEGRATION_MAP[name];
@@ -447,12 +542,12 @@
       <div class="top">
         ${s.type ? `<span class="type-tag ${escapeAttr(s.type)}">${escapeHtml(s.type)}</span>` : ''}
         <span class="name">${escapeHtml(s.name || 'Untitled')}</span>
-        ${s.frequency ? `<span class="freq">${escapeHtml(s.frequency)}</span>` : ''}
+        <span class="star" title="${escapeAttr(s.status || 'Idea')}">★</span>
       </div>
       ${s.trigger ? `<div class="trigger" data-copy="${escapeAttr(s.trigger)}"><code>${escapeHtml(s.trigger)}</code><span class="copy">copy</span></div>` : ''}
       <div class="footer">
         <div class="integrations">${integrations}</div>
-        <span class="status-pill ${s.status || 'Idea'}">${escapeHtml(s.status || 'Idea')}</span>
+        ${s.frequency ? `<span class="freq">${escapeHtml(s.frequency)}</span>` : ''}
         ${s.link ? `<a class="link" href="${escapeAttr(s.link)}" target="_top" onclick="event.stopPropagation()">↗</a>` : ''}
       </div>
     `;
