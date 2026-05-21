@@ -1,8 +1,9 @@
-// Vercel serverless function: proxies the Notion API for the Projects DB.
-// Env vars required: NOTION_TOKEN, PROJECTS_DB_ID
+// Vercel serverless function: proxies the Notion API for the Skills & Automations DB.
+// Env vars required: NOTION_TOKEN, SKILLS_DB_ID (fallback: PROJECTS_DB_ID for back-compat)
 //
-// GET  /api/sync       → returns { projects: [...] }
-// POST /api/sync       → body: { edits: [{ id, name, category, status, priority, link, notes, isNew }] }
+// GET  /api/sync       → returns { skills: [...] }
+// POST /api/sync       → body: { edits: [{ id, name, category, status, type, trigger,
+//                                          integrations, frequency, link, notes, isNew }] }
 //                        returns { written: <count> }
 
 const NOTION_VERSION = '2022-06-28';
@@ -16,6 +17,8 @@ function readProp(props, key, kind) {
       return p.title?.map((t) => t.plain_text).join('') || null;
     case 'select':
       return p.select?.name || null;
+    case 'multi_select':
+      return (p.multi_select || []).map((o) => o.name);
     case 'url':
       return p.url || null;
     case 'rich_text':
@@ -25,14 +28,17 @@ function readProp(props, key, kind) {
   }
 }
 
-function pageToProject(page) {
+function pageToSkill(page) {
   const props = page.properties || {};
   return {
     id: page.id,
     name: readProp(props, 'Name', 'title'),
     category: readProp(props, 'Category', 'select'),
     status: readProp(props, 'Status', 'select'),
-    priority: readProp(props, 'Priority', 'select'),
+    type: readProp(props, 'Type', 'select'),
+    trigger: readProp(props, 'Trigger', 'rich_text'),
+    integrations: readProp(props, 'Integrations', 'multi_select') || [],
+    frequency: readProp(props, 'Frequency', 'select'),
     link: readProp(props, 'Link', 'url'),
     notes: readProp(props, 'Notes', 'rich_text'),
   };
@@ -46,8 +52,16 @@ function buildProps(edit) {
     props.Category = edit.category ? { select: { name: edit.category } } : { select: null };
   if (edit.status !== undefined)
     props.Status = edit.status ? { select: { name: edit.status } } : { select: null };
-  if (edit.priority !== undefined)
-    props.Priority = edit.priority ? { select: { name: edit.priority } } : { select: null };
+  if (edit.type !== undefined)
+    props.Type = edit.type ? { select: { name: edit.type } } : { select: null };
+  if (edit.trigger !== undefined)
+    props.Trigger = { rich_text: edit.trigger ? [{ text: { content: edit.trigger } }] : [] };
+  if (edit.integrations !== undefined)
+    props.Integrations = {
+      multi_select: (edit.integrations || []).map((name) => ({ name })),
+    };
+  if (edit.frequency !== undefined)
+    props.Frequency = edit.frequency ? { select: { name: edit.frequency } } : { select: null };
   if (edit.link !== undefined)
     props.Link = { url: edit.link || null };
   if (edit.notes !== undefined)
@@ -90,17 +104,17 @@ async function queryAll(dbId) {
 
 module.exports = async (req, res) => {
   const token = process.env.NOTION_TOKEN;
-  const dbId = process.env.PROJECTS_DB_ID;
+  const dbId = process.env.SKILLS_DB_ID || process.env.PROJECTS_DB_ID;
   if (!token || !dbId) {
-    res.status(500).json({ error: 'Missing NOTION_TOKEN or PROJECTS_DB_ID env var' });
+    res.status(500).json({ error: 'Missing NOTION_TOKEN or SKILLS_DB_ID env var' });
     return;
   }
 
   try {
     if (req.method === 'GET') {
       const pages = await queryAll(dbId);
-      const projects = pages.map(pageToProject);
-      res.status(200).json({ projects });
+      const skills = pages.map(pageToSkill);
+      res.status(200).json({ skills });
       return;
     }
 

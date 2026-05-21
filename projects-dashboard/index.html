@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Projects</title>
+<title>Skills &amp; Automations</title>
 <style>
   :root {
     --bg: #0b0d12;
@@ -13,11 +13,8 @@
     --text: #e6e9ef;
     --muted: #8a93a3;
     --accent: #6aa6ff;
-    --p0: #ff5d5d;
-    --p1: #ffa64d;
-    --p2: #ffd84d;
-    --p3: #7be08a;
     --idea: #7c8db5;
+    --draft: #ffd84d;
     --active: #6aa6ff;
     --paused: #b48cff;
     --shipped: #5ed3a0;
@@ -48,7 +45,7 @@
   header input.filter {
     background: var(--panel-2); color: var(--text);
     border: 1px solid var(--line); border-radius: 6px;
-    padding: 6px 10px; font: inherit; width: 180px;
+    padding: 6px 10px; font: inherit; width: 200px;
   }
   header input.filter:focus { outline: none; border-color: var(--accent); }
   main {
@@ -58,7 +55,7 @@
   .board {
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: 280px;
+    grid-auto-columns: 300px;
     gap: 12px;
     align-items: start;
   }
@@ -124,34 +121,73 @@
     padding: 10px 12px;
     margin-bottom: 8px;
     cursor: pointer;
-    transition: border-color 0.1s ease, transform 0.05s ease;
+    transition: border-color 0.1s ease;
   }
   .card:hover { border-color: var(--accent); }
   .card .top { display: flex; align-items: center; gap: 6px; }
+  .card .type-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 5px; border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    text-transform: uppercase;
+  }
+  .type-tag.Skill { color: #6aa6ff; }
+  .type-tag.Slash { color: #5ed3a0; }
+  .type-tag.Hook { color: #ffa64d; }
+  .type-tag.MCP { color: #b48cff; }
+  .type-tag.Agent { color: #ff7eb6; }
+  .type-tag.Settings { color: #8a93a3; }
   .card .name { font-weight: 500; flex: 1; }
-  .card .priority {
-    font-size: 10px; font-weight: 700;
+  .card .freq {
+    font-size: 10px; color: var(--muted);
     padding: 2px 6px; border-radius: 4px;
     background: rgba(255,255,255,0.04);
   }
-  .priority.P0 { color: var(--p0); }
-  .priority.P1 { color: var(--p1); }
-  .priority.P2 { color: var(--p2); }
-  .priority.P3 { color: var(--p3); }
-  .card .meta {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 6px; font-size: 11px; color: var(--muted);
+  .card .trigger {
+    margin-top: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 5px 8px;
+    color: #e6e9ef;
+    display: flex; align-items: center; gap: 6px;
+    overflow: hidden;
   }
+  .card .trigger code {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: inherit;
+  }
+  .card .trigger .copy {
+    color: var(--muted); font-size: 11px; flex-shrink: 0;
+  }
+  .card .trigger:hover { border-color: var(--accent); }
+  .card .trigger:hover .copy { color: var(--accent); }
+  .card .footer {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 8px; min-height: 18px;
+  }
+  .integrations { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+  .integration {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 4px;
+    font-size: 9px; font-weight: 700;
+    background: var(--int-bg, #232a36); color: var(--int-fg, #e6e9ef);
+  }
+  .integration[title]:hover { outline: 1px solid var(--accent); }
   .status-pill {
     display: inline-flex; align-items: center; gap: 4px;
-    font-size: 11px; padding: 1px 6px; border-radius: 999px;
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
     background: rgba(255,255,255,0.04);
+    color: var(--muted);
   }
   .status-pill::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
     background: var(--idea);
   }
   .status-pill.Idea::before { background: var(--idea); }
+  .status-pill.Draft::before { background: var(--draft); }
   .status-pill.Active::before { background: var(--active); }
   .status-pill.Paused::before { background: var(--paused); }
   .status-pill.Shipped::before { background: var(--shipped); }
@@ -160,10 +196,6 @@
     color: var(--muted); text-decoration: none; font-size: 11px;
   }
   .card .link:hover { color: var(--accent); }
-  .empty {
-    color: var(--muted); font-style: italic; font-size: 12px;
-    padding: 8px 6px;
-  }
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: var(--panel-2); border: 1px solid var(--line);
@@ -175,7 +207,7 @@
   dialog {
     background: var(--panel); color: var(--text);
     border: 1px solid var(--line); border-radius: 10px;
-    padding: 20px; min-width: 380px;
+    padding: 20px; min-width: 420px;
   }
   dialog::backdrop { background: rgba(0,0,0,0.5); }
   dialog h2 { margin: 0 0 12px; font-size: 16px; }
@@ -186,6 +218,18 @@
     padding: 8px 10px; font: inherit;
   }
   dialog textarea { min-height: 60px; resize: vertical; }
+  dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  dialog .integrations-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  dialog .integrations-grid label {
+    margin: 0; padding: 6px 8px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 5px;
+    text-transform: none; letter-spacing: 0; font-size: 12px;
+    color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  dialog .integrations-grid input[type=checkbox] { width: auto; margin: 0; }
+  dialog .integrations-grid label:has(input:checked) { border-color: var(--accent); background: var(--panel-2); }
   dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
   dialog button {
     background: var(--panel-2); color: var(--text);
@@ -197,11 +241,11 @@
 </head>
 <body>
 <header>
-  <h1>Projects</h1>
+  <h1>Skills &amp; Automations</h1>
   <span class="status" id="status">idle</span>
   <span class="spacer"></span>
   <input class="filter" id="filter" placeholder="filter…   /" />
-  <button id="add-btn">+ project <span class="kbd">n</span></button>
+  <button id="add-btn">+ skill <span class="kbd">n</span></button>
   <button id="pull-btn">↓ pull</button>
   <button id="push-btn">↑ push</button>
 </header>
@@ -211,29 +255,62 @@
 <div class="toast" id="toast"></div>
 
 <dialog id="edit-dialog">
-  <h2 id="dialog-title">Edit project</h2>
+  <h2 id="dialog-title">Edit skill</h2>
   <form id="edit-form" method="dialog">
     <label>Name</label>
     <input name="name" required />
-    <label>Category</label>
-    <input name="category" list="categories" placeholder="e.g. Content" />
-    <datalist id="categories"></datalist>
-    <label>Status</label>
-    <select name="status">
-      <option>Idea</option>
-      <option>Active</option>
-      <option>Paused</option>
-      <option>Shipped</option>
-      <option>Archived</option>
-    </select>
-    <label>Priority</label>
-    <select name="priority">
-      <option value="">—</option>
-      <option>P0</option>
-      <option>P1</option>
-      <option>P2</option>
-      <option>P3</option>
-    </select>
+    <div class="row">
+      <div>
+        <label>Category</label>
+        <select name="category">
+          <option>Plan</option>
+          <option>Build</option>
+          <option>Ship</option>
+          <option>Quality</option>
+          <option>Knowledge</option>
+          <option>Meta</option>
+        </select>
+      </div>
+      <div>
+        <label>Type</label>
+        <select name="type">
+          <option>Skill</option>
+          <option>Slash</option>
+          <option>Hook</option>
+          <option>MCP</option>
+          <option>Agent</option>
+          <option>Settings</option>
+        </select>
+      </div>
+    </div>
+    <label>Trigger</label>
+    <input name="trigger" placeholder="/command-name or event:SessionStart" />
+    <div class="row">
+      <div>
+        <label>Status</label>
+        <select name="status">
+          <option>Idea</option>
+          <option>Draft</option>
+          <option>Active</option>
+          <option>Paused</option>
+          <option>Shipped</option>
+          <option>Archived</option>
+        </select>
+      </div>
+      <div>
+        <label>Frequency</label>
+        <select name="frequency">
+          <option value="">—</option>
+          <option>Daily</option>
+          <option>Weekly</option>
+          <option>On demand</option>
+          <option>Scheduled</option>
+          <option>On event</option>
+        </select>
+      </div>
+    </div>
+    <label>Integrations</label>
+    <div class="integrations-grid" id="integrations-grid"></div>
     <label>Link</label>
     <input name="link" type="url" placeholder="https://…" />
     <label>Notes</label>
@@ -246,9 +323,15 @@
 </dialog>
 
 <script>
-  const COLUMN_ORDER_KEY = 'projects-column-order';
-  const STATUS_ORDER = ['Active', 'Idea', 'Paused', 'Shipped', 'Archived'];
+  const COLUMN_ORDER_KEY = 'skills-column-order';
+  const STATUS_ORDER = ['Active', 'Draft', 'Idea', 'Paused', 'Shipped', 'Archived'];
   const CATEGORY_COLORS = {
+    Plan: '#6aa6ff',
+    Build: '#ffa64d',
+    Ship: '#5ed3a0',
+    Quality: '#ff5d5d',
+    Knowledge: '#b48cff',
+    Meta: '#ff7eb6',
     Content: '#6aa6ff',
     Community: '#5ed3a0',
     Agency: '#b48cff',
@@ -256,8 +339,23 @@
     Personal: '#ff7eb6',
     Ideas: '#8a93a3',
   };
-  const DEFAULT_CATEGORIES = Object.keys(CATEGORY_COLORS);
-  let state = { projects: [], dirty: false, edits: {}, filter: '' };
+  const DEFAULT_CATEGORIES = ['Plan', 'Build', 'Ship', 'Quality', 'Knowledge', 'Meta'];
+  const INTEGRATIONS = [
+    { name: 'GitHub',     short: 'GH', bg: '#24292e', fg: '#fff' },
+    { name: 'Notion',     short: 'No', bg: '#000',    fg: '#fff' },
+    { name: 'Vercel',     short: '▲',  bg: '#000',    fg: '#fff' },
+    { name: 'Firebase',   short: '🔥', bg: '#ffca28', fg: '#000' },
+    { name: 'Discord',    short: 'Dc', bg: '#5865f2', fg: '#fff' },
+    { name: 'Gmail',      short: '✉',  bg: '#ea4335', fg: '#fff' },
+    { name: 'Google',     short: 'G',  bg: '#4285f4', fg: '#fff' },
+    { name: 'X',          short: '𝕏',  bg: '#000',    fg: '#fff' },
+    { name: 'Browser',    short: '🌐', bg: '#232a36', fg: '#fff' },
+    { name: 'Filesystem', short: '📁', bg: '#232a36', fg: '#fff' },
+    { name: 'Shell',      short: '❯',  bg: '#232a36', fg: '#5ed3a0' },
+  ];
+  const INTEGRATION_MAP = Object.fromEntries(INTEGRATIONS.map((i) => [i.name, i]));
+
+  let state = { skills: [], dirty: false, edits: {}, filter: '' };
 
   const $ = (s) => document.querySelector(s);
   const statusEl = $('#status');
@@ -270,12 +368,12 @@
     setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
-  function groupByCategory(projects) {
+  function groupByCategory(skills) {
     const groups = {};
     for (const cat of DEFAULT_CATEGORIES) groups[cat] = [];
-    for (const p of projects) {
-      const cat = p.category || 'Uncategorized';
-      (groups[cat] = groups[cat] || []).push(p);
+    for (const s of skills) {
+      const cat = s.category || 'Uncategorized';
+      (groups[cat] = groups[cat] || []).push(s);
     }
     for (const cat of Object.keys(groups)) {
       groups[cat].sort((a, b) => {
@@ -297,11 +395,11 @@
 
   function render() {
     const filtered = state.filter
-      ? state.projects.filter((p) => {
-          const hay = `${p.name || ''} ${p.category || ''} ${p.status || ''} ${p.notes || ''}`.toLowerCase();
+      ? state.skills.filter((s) => {
+          const hay = `${s.name || ''} ${s.category || ''} ${s.status || ''} ${s.type || ''} ${s.trigger || ''} ${(s.integrations || []).join(' ')} ${s.notes || ''}`.toLowerCase();
           return hay.includes(state.filter);
         })
-      : state.projects;
+      : state.skills.filter((s) => s.status !== 'Archived');
     const groups = groupByCategory(filtered);
     if (state.filter) {
       for (const cat of Object.keys(groups)) {
@@ -323,7 +421,7 @@
           <button class="col-add" data-cat="${escapeAttr(cat)}" title="Add to ${escapeAttr(cat)}">+</button>
         </div>
       `;
-      for (const p of groups[cat]) col.appendChild(renderCard(p));
+      for (const s of groups[cat]) col.appendChild(renderCard(s));
       if (groups[cat].length === 0) {
         const btn = document.createElement('button');
         btn.className = 'empty-add';
@@ -334,31 +432,52 @@
       col.querySelector('.col-add').addEventListener('click', () => openEdit({ category: cat }));
       board.appendChild(col);
     }
-    const allCats = Array.from(new Set(state.projects.map((p) => p.category || 'Uncategorized')));
-    const dl = $('#categories');
-    dl.innerHTML = allCats.map((c) => `<option value="${escapeAttr(c)}">`).join('');
   }
 
-  function renderCard(p) {
+  function renderCard(s) {
     const card = document.createElement('div');
     card.className = 'card';
-    card.dataset.id = p.id;
+    card.dataset.id = s.id;
+    const integrations = (s.integrations || []).map((name) => {
+      const meta = INTEGRATION_MAP[name];
+      if (!meta) return `<span class="integration" title="${escapeAttr(name)}">${escapeHtml(name[0] || '?')}</span>`;
+      return `<span class="integration" title="${escapeAttr(name)}" style="--int-bg:${meta.bg};--int-fg:${meta.fg}">${escapeHtml(meta.short)}</span>`;
+    }).join('');
     card.innerHTML = `
       <div class="top">
-        <span class="name">${escapeHtml(p.name || 'Untitled')}</span>
-        ${p.priority ? `<span class="priority ${p.priority}">${p.priority}</span>` : ''}
+        ${s.type ? `<span class="type-tag ${escapeAttr(s.type)}">${escapeHtml(s.type)}</span>` : ''}
+        <span class="name">${escapeHtml(s.name || 'Untitled')}</span>
+        ${s.frequency ? `<span class="freq">${escapeHtml(s.frequency)}</span>` : ''}
       </div>
-      <div class="meta">
-        <span class="status-pill ${p.status || 'Idea'}">${escapeHtml(p.status || 'Idea')}</span>
-        ${p.link ? `<a class="link" href="${escapeAttr(p.link)}" target="_top" onclick="event.stopPropagation()">↗</a>` : ''}
+      ${s.trigger ? `<div class="trigger" data-copy="${escapeAttr(s.trigger)}"><code>${escapeHtml(s.trigger)}</code><span class="copy">copy</span></div>` : ''}
+      <div class="footer">
+        <div class="integrations">${integrations}</div>
+        <span class="status-pill ${s.status || 'Idea'}">${escapeHtml(s.status || 'Idea')}</span>
+        ${s.link ? `<a class="link" href="${escapeAttr(s.link)}" target="_top" onclick="event.stopPropagation()">↗</a>` : ''}
       </div>
     `;
-    card.addEventListener('click', () => openEdit(p));
+    const trig = card.querySelector('.trigger');
+    if (trig) {
+      trig.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(trig.dataset.copy || '').then(() => {
+          flash(`Copied: ${trig.dataset.copy}`);
+        });
+      });
+    }
+    card.addEventListener('click', () => openEdit(s));
     return card;
   }
 
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
   function escapeAttr(s) { return escapeHtml(s); }
+
+  function renderIntegrationsGrid(selected = []) {
+    const grid = $('#integrations-grid');
+    grid.innerHTML = INTEGRATIONS.map((i) => `
+      <label><input type="checkbox" name="integration" value="${escapeAttr(i.name)}" ${selected.includes(i.name) ? 'checked' : ''} />${escapeHtml(i.name)}</label>
+    `).join('');
+  }
 
   async function pull() {
     setStatus('pulling…');
@@ -366,12 +485,12 @@
       const res = await fetch('/api/sync');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      state.projects = data.projects || [];
+      state.skills = data.skills || data.projects || [];
       state.edits = {};
       state.dirty = false;
       render();
-      setStatus(`pulled ${state.projects.length}`);
-      flash(`Pulled ${state.projects.length} projects`);
+      setStatus(`pulled ${state.skills.length}`);
+      flash(`Pulled ${state.skills.length} skills`);
     } catch (e) {
       setStatus('pull failed');
       flash(`Pull failed: ${e.message}`);
@@ -401,17 +520,20 @@
     }
   }
 
-  function openEdit(p) {
+  function openEdit(s) {
     const dlg = $('#edit-dialog');
     const form = $('#edit-form');
-    $('#dialog-title').textContent = p.id ? 'Edit project' : 'New project';
-    form.name.value = p.name || '';
-    form.category.value = p.category || '';
-    form.status.value = p.status || 'Idea';
-    form.priority.value = p.priority || '';
-    form.link.value = p.link || '';
-    form.notes.value = p.notes || '';
-    form.dataset.id = p.id || '';
+    $('#dialog-title').textContent = s.id ? 'Edit skill' : 'New skill';
+    form.name.value = s.name || '';
+    form.category.value = s.category || 'Meta';
+    form.type.value = s.type || 'Slash';
+    form.trigger.value = s.trigger || '';
+    form.status.value = s.status || 'Active';
+    form.frequency.value = s.frequency || 'On demand';
+    form.link.value = s.link || '';
+    form.notes.value = s.notes || '';
+    form.dataset.id = s.id || '';
+    renderIntegrationsGrid(s.integrations || []);
     dlg.showModal();
   }
 
@@ -421,20 +543,24 @@
     e.preventDefault();
     const form = e.target;
     const id = form.dataset.id || `new-${Date.now()}`;
+    const integrations = Array.from(form.querySelectorAll('input[name=integration]:checked')).map((c) => c.value);
     const edit = {
       id,
       name: form.name.value.trim(),
-      category: form.category.value.trim() || 'Uncategorized',
+      category: form.category.value,
+      type: form.type.value,
+      trigger: form.trigger.value.trim() || null,
       status: form.status.value,
-      priority: form.priority.value || null,
+      frequency: form.frequency.value || null,
+      integrations,
       link: form.link.value.trim() || null,
       notes: form.notes.value.trim() || null,
       isNew: !form.dataset.id,
     };
     state.edits[id] = edit;
-    const idx = state.projects.findIndex((p) => p.id === id);
-    if (idx >= 0) state.projects[idx] = { ...state.projects[idx], ...edit };
-    else state.projects.push(edit);
+    const idx = state.skills.findIndex((s) => s.id === id);
+    if (idx >= 0) state.skills[idx] = { ...state.skills[idx], ...edit };
+    else state.skills.push(edit);
     state.dirty = true;
     setStatus('unsaved changes');
     render();
