@@ -2048,6 +2048,25 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         </div>
       </main>
 
+      {/* --- B-010 LEGAL BETA DISCLAIMER ---
+          Bug Vault B-010 ("The Scraping Liability"): footer disclaiming
+          beta status, AI-parsed third-party recipe accuracy, allergen
+          verification, and absence of professional dietary/medical advice.
+          shrink-0 so it never competes with main for vertical space inside
+          the Wix iframe (h-[100dvh] outer flex column). */}
+      <footer className="shrink-0 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-2">
+        <div className="max-w-7xl mx-auto text-[10px] md:text-[11px] text-gray-500 leading-snug">
+          <p>
+            <span className="font-semibold text-gray-700">Beta software</span>
+            <span className="text-gray-400 mx-1">·</span>
+            AI-parsed recipes from third-party sources. Always verify ingredients, quantities, and allergens.
+          </p>
+          <p>
+            ChefFlow is not affiliated with recipe authors and makes no warranty of accuracy. Not a substitute for professional dietary or medical advice.
+          </p>
+        </div>
+      </footer>
+
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
         <SheetContent id="chefflow-root" side="left" className="w-[320px] sm:w-[400px] p-0 border-r-0">
           <SheetHeader className="p-6 border-b">
