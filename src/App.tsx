@@ -130,6 +130,11 @@ function AppContent() {
   const [guardianUI, setGuardianUI] = useState<{ title: string; items: any[] } | null>(null);
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
+  // Concurrency lock against bulk parsing. Synchronous (ref, not state)
+  // because two rapid submissions can both pass an isLoading check before
+  // setIsLoading(true) commits. Also survives the Guardian intercept's
+  // intentional setIsLoading(false) drop (see handleProcess).
+  const isParsingRef = useRef(false);
 
   // --- CLEAR ALL GUARDIAN ---
   // Confirmation gate for the destructive Clear All Items action. Manifest absolute
@@ -528,6 +533,14 @@ function AppContent() {
 
   const handleProcess = async (input: string | { data: string; mimeType: string }, type: 'text' | 'image' | 'pdf' | 'url') => {
     if (!user) return;
+    // Choke point against bulk parsing: covers every caller (Enter key,
+    // button, file drop, file upload, future entry points). Ref check is
+    // synchronous so concurrent submissions can't both pass.
+    if (isParsingRef.current) {
+      toast.info('Already parsing a recipe — wait for it to finish.');
+      return;
+    }
+    isParsingRef.current = true;
     setIsLoading(true);
 
     // TELEMETRY LOG: Extraction Attempt
@@ -628,6 +641,7 @@ function AppContent() {
     } finally {
       // 3. This will now ALWAYS run, unfreezing the UI
       setIsLoading(false);
+      isParsingRef.current = false;
     }
   };
 
@@ -1378,11 +1392,11 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 }`} />
                 
                 <div className="relative flex-1 flex items-center">
-                  <Input 
-                    disabled={false} // Lab Override: Decoupled from isLoading
+                  <Input
+                    disabled={isLoading}
                     placeholder={
-                      isDragging 
-                        ? "Drop recipe file here..." 
+                      isDragging
+                        ? "Drop recipe file here..."
                         : "Paste URL or add ingredient"
                     }
                     value={rawInput}
@@ -1391,7 +1405,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                       isDragging ? 'opacity-0' : 'opacity-100'
                     }`}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && rawInput) {
+                      if (e.key === 'Enter' && rawInput && !isLoading) {
                         const isUrl = rawInput.trim().startsWith('http');
                         if (isUrl || rawInput.length > 50 || rawInput.includes('\n')) {
                           handleProcess(rawInput, isUrl ? 'url' : 'text');
