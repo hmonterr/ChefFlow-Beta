@@ -130,11 +130,13 @@ function AppContent() {
   const [guardianUI, setGuardianUI] = useState<{ title: string; items: any[] } | null>(null);
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
-  // Concurrency lock against bulk parsing. Synchronous (ref, not state)
+  // Concurrency lock against bulk URL parsing. Synchronous (ref, not state)
   // because two rapid submissions can both pass an isLoading check before
   // setIsLoading(true) commits. Also survives the Guardian intercept's
   // intentional setIsLoading(false) drop (see handleProcess).
-  const isParsingRef = useRef(false);
+  // URL-only by design: text / image / PDF parses are user-supplied content
+  // with no third-party scraping liability and may run concurrently.
+  const isUrlParsingRef = useRef(false);
 
   // --- CLEAR ALL GUARDIAN ---
   // Confirmation gate for the destructive Clear All Items action. Manifest absolute
@@ -533,14 +535,17 @@ function AppContent() {
 
   const handleProcess = async (input: string | { data: string; mimeType: string }, type: 'text' | 'image' | 'pdf' | 'url') => {
     if (!user) return;
-    // Choke point against bulk parsing: covers every caller (Enter key,
-    // button, file drop, file upload, future entry points). Ref check is
-    // synchronous so concurrent submissions can't both pass.
-    if (isParsingRef.current) {
-      toast.info('Already parsing a recipe — wait for it to finish.');
-      return;
+    // URL-only choke point against bulk scraping: blocks a second URL
+    // parse while one is in flight. Ref check is synchronous so two
+    // concurrent submissions can't both pass. Text / image / PDF parses
+    // are user-supplied content and intentionally unconstrained here.
+    if (type === 'url') {
+      if (isUrlParsingRef.current) {
+        toast.info('Already parsing a URL — wait for it to finish.');
+        return;
+      }
+      isUrlParsingRef.current = true;
     }
-    isParsingRef.current = true;
     setIsLoading(true);
 
     // TELEMETRY LOG: Extraction Attempt
@@ -641,7 +646,9 @@ function AppContent() {
     } finally {
       // 3. This will now ALWAYS run, unfreezing the UI
       setIsLoading(false);
-      isParsingRef.current = false;
+      // Idempotent release — safe even on text / image / PDF paths
+      // where the URL lock was never acquired.
+      isUrlParsingRef.current = false;
     }
   };
 
@@ -1393,7 +1400,6 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 
                 <div className="relative flex-1 flex items-center">
                   <Input
-                    disabled={isLoading}
                     placeholder={
                       isDragging
                         ? "Drop recipe file here..."
@@ -1405,7 +1411,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                       isDragging ? 'opacity-0' : 'opacity-100'
                     }`}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && rawInput && !isLoading) {
+                      if (e.key === 'Enter' && rawInput) {
                         const isUrl = rawInput.trim().startsWith('http');
                         if (isUrl || rawInput.length > 50 || rawInput.includes('\n')) {
                           handleProcess(rawInput, isUrl ? 'url' : 'text');
