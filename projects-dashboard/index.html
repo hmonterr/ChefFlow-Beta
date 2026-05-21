@@ -98,6 +98,25 @@
     border-radius: 999px;
     padding: 2px 8px;
   }
+  .col-add {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    font: inherit; font-size: 14px; line-height: 1;
+  }
+  .col-add:hover { color: var(--accent); background: var(--panel-2); }
+  .empty-add {
+    width: 100%; text-align: center;
+    background: transparent; color: var(--muted);
+    border: 1px dashed var(--line); border-radius: 6px;
+    padding: 16px 8px; cursor: pointer; font: inherit; font-size: 12px;
+  }
+  .empty-add:hover { border-color: var(--accent); color: var(--accent); }
+  .kbd {
+    display: inline-block;
+    border: 1px solid var(--line); border-radius: 3px;
+    padding: 0 4px; font-size: 10px; color: var(--muted);
+    background: var(--panel-2);
+  }
   .card {
     background: var(--panel-2);
     border: 1px solid var(--line);
@@ -181,8 +200,8 @@
   <h1>Projects</h1>
   <span class="status" id="status">idle</span>
   <span class="spacer"></span>
-  <input class="filter" id="filter" placeholder="filter…" />
-  <button id="add-btn">+ project</button>
+  <input class="filter" id="filter" placeholder="filter…   /" />
+  <button id="add-btn">+ project <span class="kbd">n</span></button>
   <button id="pull-btn">↓ pull</button>
   <button id="push-btn">↑ push</button>
 </header>
@@ -237,6 +256,7 @@
     Personal: '#ff7eb6',
     Ideas: '#8a93a3',
   };
+  const DEFAULT_CATEGORIES = Object.keys(CATEGORY_COLORS);
   let state = { projects: [], dirty: false, edits: {}, filter: '' };
 
   const $ = (s) => document.querySelector(s);
@@ -252,6 +272,7 @@
 
   function groupByCategory(projects) {
     const groups = {};
+    for (const cat of DEFAULT_CATEGORIES) groups[cat] = [];
     for (const p of projects) {
       const cat = p.category || 'Uncategorized';
       (groups[cat] = groups[cat] || []).push(p);
@@ -282,6 +303,11 @@
         })
       : state.projects;
     const groups = groupByCategory(filtered);
+    if (state.filter) {
+      for (const cat of Object.keys(groups)) {
+        if (groups[cat].length === 0) delete groups[cat];
+      }
+    }
     const cats = columnOrder(Object.keys(groups));
     const board = $('#board');
     board.innerHTML = '';
@@ -294,9 +320,18 @@
         <div class="col-head">
           <span class="col-title">${escapeHtml(cat)}</span>
           <span class="col-count">${groups[cat].length}</span>
+          <button class="col-add" data-cat="${escapeAttr(cat)}" title="Add to ${escapeAttr(cat)}">+</button>
         </div>
       `;
       for (const p of groups[cat]) col.appendChild(renderCard(p));
+      if (groups[cat].length === 0) {
+        const btn = document.createElement('button');
+        btn.className = 'empty-add';
+        btn.textContent = `+ add to ${cat}`;
+        btn.addEventListener('click', () => openEdit({ category: cat }));
+        col.appendChild(btn);
+      }
+      col.querySelector('.col-add').addEventListener('click', () => openEdit({ category: cat }));
       board.appendChild(col);
     }
     const allCats = Array.from(new Set(state.projects.map((p) => p.category || 'Uncategorized')));
@@ -404,6 +439,23 @@
     setStatus('unsaved changes');
     render();
     $('#edit-dialog').close();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    const inField = tag === 'input' || tag === 'textarea' || tag === 'select';
+    if (e.key === '/' && !inField) {
+      e.preventDefault();
+      $('#filter').focus();
+    } else if ((e.key === 'n' || e.key === 'N') && !inField && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      openEdit({});
+    } else if (e.key === 'Escape' && inField && e.target.id === 'filter') {
+      e.target.value = '';
+      state.filter = '';
+      render();
+      e.target.blur();
+    }
   });
 
   $('#filter').addEventListener('input', (e) => {
