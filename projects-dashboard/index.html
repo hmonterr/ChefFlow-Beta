@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Projects</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #11151c;
+    --panel-2: #161b25;
+    --line: #232a36;
+    --text: #e6e9ef;
+    --muted: #8a93a3;
+    --accent: #6aa6ff;
+    --p0: #ff5d5d;
+    --p1: #ffa64d;
+    --p2: #ffd84d;
+    --p3: #7be08a;
+    --idea: #7c8db5;
+    --active: #6aa6ff;
+    --paused: #b48cff;
+    --shipped: #5ed3a0;
+    --archived: #5a6273;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
+  header .spacer { flex: 1; }
+  header button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font: inherit;
+  }
+  header button:hover { border-color: var(--accent); }
+  header .status { color: var(--muted); font-size: 12px; }
+  main {
+    padding: 16px 20px 80px;
+    overflow-x: auto;
+  }
+  .board {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 280px;
+    gap: 12px;
+    align-items: start;
+  }
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 120px;
+  }
+  .col-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 6px 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 10px;
+  }
+  .col-title {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .col-count {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+    background: var(--panel-2);
+    border-radius: 999px;
+    padding: 2px 8px;
+  }
+  .card {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.1s ease, transform 0.05s ease;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card .top { display: flex; align-items: center; gap: 6px; }
+  .card .name { font-weight: 500; flex: 1; }
+  .card .priority {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+  }
+  .priority.P0 { color: var(--p0); }
+  .priority.P1 { color: var(--p1); }
+  .priority.P2 { color: var(--p2); }
+  .priority.P3 { color: var(--p3); }
+  .card .meta {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 6px; font-size: 11px; color: var(--muted);
+  }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 1px 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+  }
+  .status-pill::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--idea);
+  }
+  .status-pill.Idea::before { background: var(--idea); }
+  .status-pill.Active::before { background: var(--active); }
+  .status-pill.Paused::before { background: var(--paused); }
+  .status-pill.Shipped::before { background: var(--shipped); }
+  .status-pill.Archived::before { background: var(--archived); }
+  .card .link {
+    color: var(--muted); text-decoration: none; font-size: 11px;
+  }
+  .card .link:hover { color: var(--accent); }
+  .empty {
+    color: var(--muted); font-style: italic; font-size: 12px;
+    padding: 8px 6px;
+  }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 10px 16px; border-radius: 8px;
+    color: var(--text); font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  dialog {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px; min-width: 380px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.5); }
+  dialog h2 { margin: 0 0 12px; font-size: 16px; }
+  dialog label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+  dialog input, dialog select, dialog textarea {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; font: inherit;
+  }
+  dialog textarea { min-height: 60px; resize: vertical; }
+  dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  dialog button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 14px; cursor: pointer; font: inherit;
+  }
+  dialog button.primary { background: var(--accent); border-color: var(--accent); color: #0b0d12; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Projects</h1>
+  <span class="status" id="status">idle</span>
+  <span class="spacer"></span>
+  <button id="add-btn">+ project</button>
+  <button id="pull-btn">↓ pull</button>
+  <button id="push-btn">↑ push</button>
+</header>
+<main>
+  <div class="board" id="board"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<dialog id="edit-dialog">
+  <h2 id="dialog-title">Edit project</h2>
+  <form id="edit-form" method="dialog">
+    <label>Name</label>
+    <input name="name" required />
+    <label>Category</label>
+    <input name="category" list="categories" placeholder="e.g. Content" />
+    <datalist id="categories"></datalist>
+    <label>Status</label>
+    <select name="status">
+      <option>Idea</option>
+      <option>Active</option>
+      <option>Paused</option>
+      <option>Shipped</option>
+      <option>Archived</option>
+    </select>
+    <label>Priority</label>
+    <select name="priority">
+      <option value="">—</option>
+      <option>P0</option>
+      <option>P1</option>
+      <option>P2</option>
+      <option>P3</option>
+    </select>
+    <label>Link</label>
+    <input name="link" type="url" placeholder="https://…" />
+    <label>Notes</label>
+    <textarea name="notes"></textarea>
+    <div class="actions">
+      <button type="button" id="dialog-cancel">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  const COLUMN_ORDER_KEY = 'projects-column-order';
+  const STATUS_ORDER = ['Active', 'Idea', 'Paused', 'Shipped', 'Archived'];
+  let state = { projects: [], dirty: false, edits: {} };
+
+  const $ = (s) => document.querySelector(s);
+  const statusEl = $('#status');
+  const toast = $('#toast');
+
+  function setStatus(s) { statusEl.textContent = s; }
+  function flash(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  function groupByCategory(projects) {
+    const groups = {};
+    for (const p of projects) {
+      const cat = p.category || 'Uncategorized';
+      (groups[cat] = groups[cat] || []).push(p);
+    }
+    for (const cat of Object.keys(groups)) {
+      groups[cat].sort((a, b) => {
+        const sa = STATUS_ORDER.indexOf(a.status || 'Idea');
+        const sb = STATUS_ORDER.indexOf(b.status || 'Idea');
+        if (sa !== sb) return sa - sb;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    }
+    return groups;
+  }
+
+  function columnOrder(categories) {
+    const saved = JSON.parse(localStorage.getItem(COLUMN_ORDER_KEY) || '[]');
+    const result = saved.filter((c) => categories.includes(c));
+    for (const c of categories) if (!result.includes(c)) result.push(c);
+    return result;
+  }
+
+  function render() {
+    const groups = groupByCategory(state.projects);
+    const cats = columnOrder(Object.keys(groups));
+    const board = $('#board');
+    board.innerHTML = '';
+    for (const cat of cats) {
+      const col = document.createElement('div');
+      col.className = 'col';
+      col.innerHTML = `
+        <div class="col-head">
+          <span class="col-title">${escapeHtml(cat)}</span>
+          <span class="col-count">${groups[cat].length}</span>
+        </div>
+      `;
+      for (const p of groups[cat]) col.appendChild(renderCard(p));
+      board.appendChild(col);
+    }
+    const dl = $('#categories');
+    dl.innerHTML = cats.map((c) => `<option value="${escapeAttr(c)}">`).join('');
+  }
+
+  function renderCard(p) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = p.id;
+    card.innerHTML = `
+      <div class="top">
+        <span class="name">${escapeHtml(p.name || 'Untitled')}</span>
+        ${p.priority ? `<span class="priority ${p.priority}">${p.priority}</span>` : ''}
+      </div>
+      <div class="meta">
+        <span class="status-pill ${p.status || 'Idea'}">${escapeHtml(p.status || 'Idea')}</span>
+        ${p.link ? `<a class="link" href="${escapeAttr(p.link)}" target="_top" onclick="event.stopPropagation()">↗</a>` : ''}
+      </div>
+    `;
+    card.addEventListener('click', () => openEdit(p));
+    return card;
+  }
+
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  async function pull() {
+    setStatus('pulling…');
+    try {
+      const res = await fetch('/api/sync');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      state.projects = data.projects || [];
+      state.edits = {};
+      state.dirty = false;
+      render();
+      setStatus(`pulled ${state.projects.length}`);
+      flash(`Pulled ${state.projects.length} projects`);
+    } catch (e) {
+      setStatus('pull failed');
+      flash(`Pull failed: ${e.message}`);
+    }
+  }
+
+  async function push() {
+    if (!Object.keys(state.edits).length) {
+      flash('Nothing to push');
+      return;
+    }
+    setStatus('pushing…');
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ edits: Object.values(state.edits) }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setStatus(`pushed ${data.written || 0}`);
+      flash(`Pushed ${data.written || 0} changes`);
+      await pull();
+    } catch (e) {
+      setStatus('push failed');
+      flash(`Push failed: ${e.message}`);
+    }
+  }
+
+  function openEdit(p) {
+    const dlg = $('#edit-dialog');
+    const form = $('#edit-form');
+    $('#dialog-title').textContent = p.id ? 'Edit project' : 'New project';
+    form.name.value = p.name || '';
+    form.category.value = p.category || '';
+    form.status.value = p.status || 'Idea';
+    form.priority.value = p.priority || '';
+    form.link.value = p.link || '';
+    form.notes.value = p.notes || '';
+    form.dataset.id = p.id || '';
+    dlg.showModal();
+  }
+
+  $('#dialog-cancel').addEventListener('click', () => $('#edit-dialog').close());
+
+  $('#edit-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const id = form.dataset.id || `new-${Date.now()}`;
+    const edit = {
+      id,
+      name: form.name.value.trim(),
+      category: form.category.value.trim() || 'Uncategorized',
+      status: form.status.value,
+      priority: form.priority.value || null,
+      link: form.link.value.trim() || null,
+      notes: form.notes.value.trim() || null,
+      isNew: !form.dataset.id,
+    };
+    state.edits[id] = edit;
+    const idx = state.projects.findIndex((p) => p.id === id);
+    if (idx >= 0) state.projects[idx] = { ...state.projects[idx], ...edit };
+    else state.projects.push(edit);
+    state.dirty = true;
+    setStatus('unsaved changes');
+    render();
+    $('#edit-dialog').close();
+  });
+
+  $('#pull-btn').addEventListener('click', pull);
+  $('#push-btn').addEventListener('click', push);
+  $('#add-btn').addEventListener('click', () => openEdit({}));
+
+  pull();
+</script>
+</body>
+</html>
