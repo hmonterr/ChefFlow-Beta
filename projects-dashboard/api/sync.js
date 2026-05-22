@@ -1,72 +1,86 @@
-// Vercel serverless function: proxies the Notion API for the Skills & Automations DB.
-// Env vars required: NOTION_TOKEN, SKILLS_DB_ID (fallback: PROJECTS_DB_ID for back-compat)
+// Vercel serverless function: fetches the Claude Dashboard graph from Notion.
 //
-// GET  /api/sync       → returns { skills: [...] }
-// POST /api/sync       → body: { edits: [{ id, name, category, status, type, trigger,
-//                                          integrations, frequency, link, notes, isNew }] }
-//                        returns { written: <count> }
+// Three Notion DBs:
+//   PROJECTS_DB_ID  → Projects (top-level work)
+//   TASKS_DB_ID     → Tasks (relation → Project, relation → Skills/Agents)
+//   SKILLS_DB_ID    → Skills & Automations (the "agents")
+//
+// GET /api/sync → returns { projects: [{...project, tasks: [{...task, agents: [{...skill}]}]}] }
 
 const NOTION_VERSION = '2022-06-28';
 const NOTION_API = 'https://api.notion.com/v1';
 
-function readProp(props, key, kind) {
-  const p = props?.[key];
-  if (!p) return null;
-  switch (kind) {
-    case 'title':
-      return p.title?.map((t) => t.plain_text).join('') || null;
-    case 'select':
-      return p.select?.name || null;
-    case 'multi_select':
-      return (p.multi_select || []).map((o) => o.name);
-    case 'url':
-      return p.url || null;
-    case 'rich_text':
-      return p.rich_text?.map((t) => t.plain_text).join('') || null;
-    default:
-      return null;
-  }
+function rt(prop) {
+  return prop?.rich_text?.map((t) => t.plain_text).join('') || null;
+}
+function title(prop) {
+  return prop?.title?.map((t) => t.plain_text).join('') || null;
+}
+function sel(prop) {
+  return prop?.select?.name || null;
+}
+function ms(prop) {
+  return (prop?.multi_select || []).map((o) => o.name);
+}
+function rel(prop) {
+  return (prop?.relation || []).map((r) => r.id);
+}
+function num(prop) {
+  return typeof prop?.number === 'number' ? prop.number : null;
+}
+function url(prop) {
+  return prop?.url || null;
+}
+function dt(prop) {
+  return prop?.date?.start || null;
 }
 
-function pageToSkill(page) {
-  const props = page.properties || {};
+function pageToProject(page) {
+  const p = page.properties || {};
   return {
     id: page.id,
-    name: readProp(props, 'Name', 'title'),
-    category: readProp(props, 'Category', 'select'),
-    status: readProp(props, 'Status', 'select'),
-    type: readProp(props, 'Type', 'select'),
-    trigger: readProp(props, 'Trigger', 'rich_text'),
-    integrations: readProp(props, 'Integrations', 'multi_select') || [],
-    frequency: readProp(props, 'Frequency', 'select'),
-    link: readProp(props, 'Link', 'url'),
-    notes: readProp(props, 'Notes', 'rich_text'),
+    url: page.url,
+    name: title(p.Name),
+    status: sel(p.Status),
+    category: sel(p.Category),
+    priority: sel(p.Priority),
+    order: num(p.Order),
+    repo: url(p.Repo),
+    notes: rt(p.Notes),
   };
 }
 
-function buildProps(edit) {
-  const props = {};
-  if (edit.name !== undefined)
-    props.Name = { title: [{ text: { content: edit.name || '' } }] };
-  if (edit.category !== undefined)
-    props.Category = edit.category ? { select: { name: edit.category } } : { select: null };
-  if (edit.status !== undefined)
-    props.Status = edit.status ? { select: { name: edit.status } } : { select: null };
-  if (edit.type !== undefined)
-    props.Type = edit.type ? { select: { name: edit.type } } : { select: null };
-  if (edit.trigger !== undefined)
-    props.Trigger = { rich_text: edit.trigger ? [{ text: { content: edit.trigger } }] : [] };
-  if (edit.integrations !== undefined)
-    props.Integrations = {
-      multi_select: (edit.integrations || []).map((name) => ({ name })),
-    };
-  if (edit.frequency !== undefined)
-    props.Frequency = edit.frequency ? { select: { name: edit.frequency } } : { select: null };
-  if (edit.link !== undefined)
-    props.Link = { url: edit.link || null };
-  if (edit.notes !== undefined)
-    props.Notes = { rich_text: edit.notes ? [{ text: { content: edit.notes } }] : [] };
-  return props;
+function pageToTask(page) {
+  const p = page.properties || {};
+  return {
+    id: page.id,
+    url: page.url,
+    name: title(p.Name),
+    status: sel(p.Status),
+    priority: sel(p.Priority),
+    order: num(p.Order),
+    due: dt(p.Due),
+    notes: rt(p.Notes),
+    projectIds: rel(p.Project),
+    agentIds: rel(p.Agents),
+  };
+}
+
+function pageToSkill(page) {
+  const p = page.properties || {};
+  return {
+    id: page.id,
+    url: page.url,
+    name: title(p.Name),
+    type: sel(p.Type),
+    category: sel(p.Category),
+    status: sel(p.Status),
+    trigger: rt(p.Trigger),
+    frequency: sel(p.Frequency),
+    integrations: ms(p.Integrations),
+    link: url(p.Link),
+    notes: rt(p.Notes),
+  };
 }
 
 async function notionFetch(path, init = {}) {
@@ -102,49 +116,81 @@ async function queryAll(dbId) {
   return all;
 }
 
+function normalizeId(id) {
+  return String(id || '').replace(/-/g, '');
+}
+
 module.exports = async (req, res) => {
   const token = process.env.NOTION_TOKEN;
-  const dbId = process.env.SKILLS_DB_ID || process.env.PROJECTS_DB_ID;
-  if (!token || !dbId) {
-    res.status(500).json({ error: 'Missing NOTION_TOKEN or SKILLS_DB_ID env var' });
+  const projectsId = process.env.PROJECTS_DB_ID;
+  const tasksId = process.env.TASKS_DB_ID;
+  const skillsId = process.env.SKILLS_DB_ID;
+  if (!token || !projectsId || !tasksId || !skillsId) {
+    res.status(500).json({
+      error: 'Missing env vars. Need NOTION_TOKEN, PROJECTS_DB_ID, TASKS_DB_ID, SKILLS_DB_ID.',
+    });
+    return;
+  }
+
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' });
     return;
   }
 
   try {
-    if (req.method === 'GET') {
-      const pages = await queryAll(dbId);
-      const skills = pages.map(pageToSkill);
-      res.status(200).json({ skills });
-      return;
+    const [projectPages, taskPages, skillPages] = await Promise.all([
+      queryAll(projectsId),
+      queryAll(tasksId),
+      queryAll(skillsId),
+    ]);
+
+    const projects = projectPages.map(pageToProject);
+    const tasks = taskPages.map(pageToTask);
+    const skills = skillPages.map(pageToSkill);
+
+    const skillById = new Map(skills.map((s) => [normalizeId(s.id), s]));
+    const projectById = new Map(projects.map((p) => [normalizeId(p.id), p]));
+
+    for (const t of tasks) {
+      t.agents = t.agentIds
+        .map((id) => skillById.get(normalizeId(id)))
+        .filter(Boolean);
     }
 
-    if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
-      const edits = Array.isArray(body.edits) ? body.edits : [];
-      let written = 0;
-      for (const edit of edits) {
-        const props = buildProps(edit);
-        if (edit.isNew || String(edit.id || '').startsWith('new-')) {
-          await notionFetch('/pages', {
-            method: 'POST',
-            body: JSON.stringify({
-              parent: { database_id: dbId },
-              properties: props,
-            }),
-          });
-        } else {
-          await notionFetch(`/pages/${edit.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ properties: props }),
-          });
-        }
-        written += 1;
+    const tasksByProject = new Map();
+    for (const t of tasks) {
+      for (const pid of t.projectIds) {
+        const key = normalizeId(pid);
+        if (!tasksByProject.has(key)) tasksByProject.set(key, []);
+        tasksByProject.get(key).push(t);
       }
-      res.status(200).json({ written });
-      return;
     }
 
-    res.status(405).json({ error: 'Method not allowed' });
+    for (const p of projects) {
+      const list = tasksByProject.get(normalizeId(p.id)) || [];
+      list.sort((a, b) => {
+        const oa = a.order ?? 999, ob = b.order ?? 999;
+        if (oa !== ob) return oa - ob;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      p.tasks = list;
+    }
+
+    projects.sort((a, b) => {
+      const oa = a.order ?? 999, ob = b.order ?? 999;
+      if (oa !== ob) return oa - ob;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    res.status(200).json({
+      projects,
+      skills,
+      counts: {
+        projects: projects.length,
+        tasks: tasks.length,
+        skills: skills.length,
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

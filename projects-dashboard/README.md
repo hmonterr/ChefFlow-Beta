@@ -1,43 +1,60 @@
-# skills-dashboard
+# claude-dashboard
 
-Static kanban board for skills, slash commands, hooks, MCPs, and agents — the "Agentic OS" backbone. Same architecture as `chefflow-dashboard`: static `index.html` + Vercel serverless `/api/sync` that proxies the Notion API.
+Five-level orgchart view of your work: **ME / CLIENT → CLAUDE → PROJECTS → TASKS → AGENTS**.
 
-Each card represents a runnable thing; clicking the trigger copies it to the clipboard. Integrations row shows which services the skill touches.
+Static `index.html` + Vercel serverless `/api/sync` that fetches three Notion databases, stitches them by relation, and renders the tree.
 
-> The directory is still named `projects-dashboard/` for git-history continuity. Rename on the next major bump.
+> The folder is still named `projects-dashboard/` for git-history continuity. Rename when you move it to its own repo.
+
+## Architecture
+
+```
+                ME / CLIENT
+                     |
+                  CLAUDE
+        _____________|_______________
+        |       |       |      |      |
+     Proj 1  Proj 2  Proj 3  ...    Proj 5
+        |       |       |
+      Tasks   Tasks   Tasks
+       / \    / \      |
+      A   B  A   B     A     ← agents (skills) assigned per task
+```
+
+Three Notion DBs (all live under the **Claude Dashboard** page):
+
+| DB | ID | Purpose |
+|---|---|---|
+| Projects             | `a4c84fa4e269446a967ee693e40203b7` | Top-level work. Name, Status, Category, Priority, Order, Repo, Notes. |
+| Tasks                | `5f547c9551994a85952cd23e3489dac0` | Action items. Relation → Project, relation → Agents (skills). Status, Priority, Due, Order, Notes. |
+| Skills & Automations | `6afb12e7d168466f997568875afa7d48` | The agent pool. Slash commands, skills, hooks, MCPs. |
+
+Tasks ↔ Projects and Tasks ↔ Skills are both dual relations, so you can also see "what tasks use this agent" from inside Notion.
 
 ## Deploy
 
-1. **The Notion DB is already set up** at `91d42207-837c-4485-8712-286487903cc8` (titled "Skills & Automations", under the "Claude Dashboard" page).
-
-   Schema:
-   - `Name` (title)
-   - `Category` (select) — Plan, Build, Ship, Quality, Knowledge, Meta
-   - `Type` (select) — Skill, Slash, Hook, MCP, Agent, Settings
-   - `Trigger` (rich_text) — `/command-name` or event name
-   - `Frequency` (select) — Daily, Weekly, On demand, Scheduled, On event
-   - `Status` (select) — Idea, Draft, Active, Paused, Shipped, Archived
-   - `Integrations` (multi_select) — GitHub, Notion, Vercel, Firebase, Discord, Gmail, Google, X, Browser, Filesystem, Shell
-   - `Link` (URL)
-   - `Notes` (text)
-
-2. **Move this folder to its own repo.** Push to GitHub.
-
-3. **Deploy to Vercel.** Set env vars in the project settings:
-   - `NOTION_TOKEN` — internal integration token with read+write on the DB
+1. **Move this folder to its own repo** (`claude-dashboard`).
+2. **Connect on Vercel.**
+3. **Set env vars** in the Vercel project:
+   - `NOTION_TOKEN` — Claude Dashboard integration token
+   - `PROJECTS_DB_ID=a4c84fa4e269446a967ee693e40203b7`
+   - `TASKS_DB_ID=5f547c9551994a85952cd23e3489dac0`
    - `SKILLS_DB_ID=6afb12e7d168466f997568875afa7d48`
-     (legacy `PROJECTS_DB_ID` is also accepted as a fallback)
-
-4. **Share the DB with the integration** inside Notion (... → Connections → add).
+4. **Share each DB with the integration** (Notion → ⋯ → Connections → add Claude Dashboard).
 
 ## Use
 
-- `↓ pull` — fetch latest from Notion.
-- `+ skill` (or `n`) — open the editor for a new skill.
-- `/` — focus filter. Filters search name, category, type, trigger, integrations, notes.
-- Click a card's trigger — copies it to clipboard.
-- Click anywhere else on a card — edit.
-- `↑ push` — flush staged edits to Notion.
-- Archived skills are hidden by default; filter (`/`) reveals them.
+- `↓ pull` — re-fetch the graph. Auto-runs on load.
+- `/` — focus filter. Filters across project, task, and agent names + notes.
+- Click any **project header** → opens it in Notion.
+- Click any **task** → opens it in Notion.
+- Click any **agent chip** → opens that skill in Notion.
 
-Columns are the six default categories; cards inside sort by Status (Active → Draft → Idea → Paused → Shipped → Archived) then alphabetically.
+Editing happens in Notion. The dashboard is a viewer; relations make it cheap to keep accurate.
+
+## What's where
+
+- **`index.html`** — the static UI. Renders the 5-level tree from `/api/sync`.
+- **`api/sync.js`** — fetches all three Notion DBs in parallel, normalizes properties, stitches the relation graph, returns `{ projects: [{...project, tasks: [{...task, agents: [{...skill}]}]}] }`.
+- **`vercel.json`** — Vercel function config (empty body, just enables the API folder).
+- **`package.json`** — declares it as a Node project.
