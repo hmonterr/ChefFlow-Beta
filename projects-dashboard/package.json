@@ -1,9 +1,0 @@
-{
-  "name": "projects-dashboard",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Kanban-style dashboard for projects, backed by a Notion DB.",
-  "engines": {
-    "node": ">=18"
-  }
-}
