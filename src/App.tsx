@@ -130,6 +130,13 @@ function AppContent() {
   const [guardianUI, setGuardianUI] = useState<{ title: string; items: any[] } | null>(null);
   const resolveGuardianRef = useRef<((items: any[]) => void) | null>(null);
   const rejectGuardianRef = useRef<((reason?: any) => void) | null>(null);
+  // Concurrency lock against bulk URL parsing. Synchronous (ref, not state)
+  // because two rapid submissions can both pass an isLoading check before
+  // setIsLoading(true) commits. Also survives the Guardian intercept's
+  // intentional setIsLoading(false) drop (see handleProcess).
+  // URL-only by design: text / image / PDF parses are user-supplied content
+  // with no third-party scraping liability and may run concurrently.
+  const isUrlParsingRef = useRef(false);
 
   // --- CLEAR ALL GUARDIAN ---
   // Confirmation gate for the destructive Clear All Items action. Manifest absolute
@@ -137,6 +144,11 @@ function AppContent() {
   // of the active board." Settings → Clear All Items now opens this confirm; the
   // actual writeBatch delete only fires on user confirm.
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // --- B-010 LEGAL DISCLAIMER FOOTER ---
+  // Collapsed by default for a cleaner footer; trigger label "Legal & Disclaimer"
+  // provides constructive notice, full text one click away.
+  const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
 
   // --- KANBAN GESTURE HANDLER ---
   // Replaces native scroll inertia with one-column-per-gesture snap behavior on
@@ -528,6 +540,17 @@ function AppContent() {
 
   const handleProcess = async (input: string | { data: string; mimeType: string }, type: 'text' | 'image' | 'pdf' | 'url') => {
     if (!user) return;
+    // URL-only choke point against bulk scraping: blocks a second URL
+    // parse while one is in flight. Ref check is synchronous so two
+    // concurrent submissions can't both pass. Text / image / PDF parses
+    // are user-supplied content and intentionally unconstrained here.
+    if (type === 'url') {
+      if (isUrlParsingRef.current) {
+        toast.info('Already parsing a URL — wait for it to finish.');
+        return;
+      }
+      isUrlParsingRef.current = true;
+    }
     setIsLoading(true);
 
     // TELEMETRY LOG: Extraction Attempt
@@ -628,6 +651,9 @@ function AppContent() {
     } finally {
       // 3. This will now ALWAYS run, unfreezing the UI
       setIsLoading(false);
+      // Idempotent release — safe even on text / image / PDF paths
+      // where the URL lock was never acquired.
+      isUrlParsingRef.current = false;
     }
   };
 
@@ -1378,11 +1404,10 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 }`} />
                 
                 <div className="relative flex-1 flex items-center">
-                  <Input 
-                    disabled={false} // Lab Override: Decoupled from isLoading
+                  <Input
                     placeholder={
-                      isDragging 
-                        ? "Drop recipe file here..." 
+                      isDragging
+                        ? "Drop recipe file here..."
                         : "Paste URL or add ingredient"
                     }
                     value={rawInput}
@@ -2047,6 +2072,44 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#F8F9FA] to-transparent" aria-hidden="true" />
         </div>
       </main>
+
+      {/* --- B-010 LEGAL BETA DISCLAIMER ---
+          Collapsed by default for a clean footer; trigger label provides
+          constructive notice, full text one click away. shrink-0 so it
+          never competes with main for vertical space inside the Wix iframe
+          (h-[100dvh] outer flex column). */}
+      <footer className="shrink-0 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-2">
+        <div className="max-w-7xl mx-auto">
+          <button
+            type="button"
+            onClick={() => setIsDisclaimerOpen(open => !open)}
+            aria-expanded={isDisclaimerOpen}
+            aria-controls="legal-disclaimer-body"
+            className="flex items-center gap-1 text-[10px] md:text-[11px] font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <span>Legal &amp; Disclaimer</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={`w-3 h-3 transition-transform duration-200 ${isDisclaimerOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {isDisclaimerOpen && (
+            <div
+              id="legal-disclaimer-body"
+              className="mt-1.5 text-[10px] md:text-[11px] text-gray-500 leading-snug space-y-1"
+            >
+              <p>
+                <span className="font-semibold text-gray-700">Beta software</span>
+                <span className="text-gray-400 mx-1">·</span>
+                AI-parsed recipes from third-party sources. Always verify ingredients, quantities, and allergens.
+              </p>
+              <p>
+                ChefFlow is not affiliated with recipe authors and makes no warranty of accuracy. Not a substitute for professional dietary or medical advice.
+              </p>
+            </div>
+          )}
+        </div>
+      </footer>
 
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
         <SheetContent id="chefflow-root" side="left" className="w-[320px] sm:w-[400px] p-0 border-r-0">
