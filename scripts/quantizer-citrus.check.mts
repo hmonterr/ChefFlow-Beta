@@ -25,13 +25,25 @@ const cases: Case[] = [
   { name: 'mandarin zest', qty: 1, unit: 'tbsp', wantUnit: 'ea', wantQty: 1, note: 'mandarin zest -> 1' },
   { name: 'clementine zest', qty: 1, unit: 'tbsp', wantUnit: 'ea', wantQty: 1, note: 'clementine zest -> 1' },
   { name: 'tangerine zest', qty: 1, unit: 'tbsp', wantUnit: 'ea', wantQty: 1, note: 'tangerine zest -> 1' },
-  // --- EXCEPTION: bottled juice keeps what the recipe asked for, NOT whole fruit ---
+  { name: 'lemon rind', qty: 1, unit: 'tbsp', wantUnit: 'ea', wantQty: 1, note: 'rind is a zest synonym -> 1 lemon' },
+  { name: 'orange zest', qty: 1, unit: 'tsp', wantUnit: 'ea', wantQty: 1, note: '1 tsp / (2*3) -> ceil -> 1 orange' },
+  // --- EXCEPTION: bottled/processed juice keeps what the recipe asked for, NOT whole fruit ---
   { name: 'bottled lime juice', qty: 2, unit: 'tbsp', wantNotUnit: 'ea', note: 'bottled lime juice stays liquid' },
   { name: 'lime juice', qty: 1, unit: 'bottle', wantNotUnit: 'ea', note: 'unit=bottle is not converted' },
   { name: 'lemon juice, bottled', qty: 0.5, unit: 'cup', wantNotUnit: 'ea', note: 'bottled phrasing stays liquid' },
+  { name: 'lime juice concentrate', qty: 4, unit: 'tbsp', wantNotUnit: 'ea', note: 'concentrate is a pantry product' },
+  { name: 'lime cordial', qty: 2, unit: 'tbsp', wantNotUnit: 'ea', note: 'cordial syrup stays liquid' },
+  // --- UNIT ROBUSTNESS: volume units convert; unknown units must NOT become fruit counts ---
+  { name: 'lime juice', qty: 100, unit: 'ml', wantUnit: 'ea', wantQty: 4, note: '100 ml / 14.79 / 2 -> 4 limes (NOT 100!)' },
+  { name: 'lemon juice', qty: 2, unit: 'fl oz', wantUnit: 'ea', wantQty: 2, note: '2 fl oz = 4 tbsp / 2 = 2 lemons' },
+  { name: 'lemon zest', qty: 10, unit: 'g', wantQty: 1, note: 'weight falls through interceptor -> generic 1 ea, NOT 10' },
+  { name: 'lime juice', qty: 0, unit: 'tbsp', wantNotUnit: 'ea', note: 'zero qty must not invent a fruit' },
+  // --- mixed-citrus zest: deterministic (insertion order picks orange, yield 2) ---
+  { name: 'orange grapefruit zest', qty: 6, unit: 'tbsp', wantUnit: 'ea', wantQty: 3, note: 'orange matched first (6/2=3)' },
   // --- scope boundaries: NON-lime/lemon JUICE stays a carton, whole fruit passes through ---
   { name: 'orange juice', qty: 1, unit: 'cup', wantUnit: 'oz', note: 'orange JUICE NOT counted whole (carton)' },
   { name: 'grapefruit juice', qty: 2, unit: 'tbsp', wantUnit: 'oz', note: 'grapefruit JUICE stays liquid (carton)' },
+  { name: 'lemon thyme', qty: 1, unit: 'tbsp', wantUnit: 'bunch', note: 'herb shield wins over citrus (precedence)' },
   { name: 'lime', qty: 3, unit: 'ea', wantUnit: 'ea', wantQty: 3, note: 'whole limes pass through' },
 ];
 

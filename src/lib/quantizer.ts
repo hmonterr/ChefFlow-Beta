@@ -208,34 +208,50 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   // "zest of 2 limes", "blood orange zest", etc. all resolve. The form picks the
   // yield table: zest covers ALL citrus (zest is never sold alone); juice is scoped
   // to lime/lemon (orange/grapefruit juice is bought as a carton).
-  // EXCEPTION: when the recipe explicitly calls for BOTTLED juice, keep it as the
-  // liquid the recipe asked for — do not convert to fresh fruit.
+  // EXCEPTION: bottled/processed juice (bottle, concentrate, cordial, syrup) is
+  // bought as the liquid the recipe names — keep it, do not convert to fresh fruit.
   const isZest = searchKey.includes('zest') || searchKey.includes('rind');
-  const isBottledJuice = searchKey.includes('bottle') || normalizedUnit.includes('bottle');
-  const isJuice = searchKey.includes('juice') && !isBottledJuice;
+  const isProcessedJuice =
+    searchKey.includes('bottle') || normalizedUnit.includes('bottle') ||
+    searchKey.includes('concentrate') || searchKey.includes('cordial') ||
+    searchKey.includes('syrup');
+  const isJuice = searchKey.includes('juice') && !isProcessedJuice;
   const yieldTable = isZest ? ZEST_TO_WHOLE_FRUIT : isJuice ? JUICE_TO_WHOLE_FRUIT : null;
   const citrusFruit = yieldTable ? Object.keys(yieldTable).find(f => searchKey.includes(f)) : undefined;
   if (citrusFruit && yieldTable) {
     const tbspPerFruit = yieldTable[citrusFruit];
-    let fruitCount = totalQuantity; // already-counted units (ea) pass through as-is
-    if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) {
-      fruitCount = totalQuantity / tbspPerFruit;
-    } else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) {
-      fruitCount = totalQuantity / (tbspPerFruit * 3);
-    } else if (normalizedUnit.includes('cup')) {
-      fruitCount = (totalQuantity * 16) / tbspPerFruit;
-    }
 
-    const finalQty = Math.ceil(fruitCount) || 1;
-    return {
-      quantity: finalQty,
-      unit: 'ea',
-      mpuQuantity: finalQty,
-      mpuUnit: 'ea',
-      category: 'Produce',
-      name: cleanedName,
-      displayString: formatDisplay(finalQty, 'ea')
-    };
+    // Convert the recipe amount to a whole-fruit count. Recognized volume units are
+    // scaled by the fruit's yield. Count units (ea/whole/…) pass through unchanged —
+    // load-bearing: it keeps consolidation's re-quantize of an already-counted value
+    // idempotent. Unknown units (g, lb, …) leave fruitCount null so we fall through
+    // to generic handling instead of treating the raw number as a fruit count
+    // (e.g. "100 ml" must not become 100 fruit).
+    const u = normalizedUnit;
+    let tbspEquiv: number | null = null;
+    if (u.includes('tbsp') || u.includes('tablespoon')) tbspEquiv = totalQuantity;
+    else if (u.includes('tsp') || u.includes('teaspoon')) tbspEquiv = totalQuantity / 3;
+    else if (u.includes('cup')) tbspEquiv = totalQuantity * 16;
+    else if (u.includes('oz')) tbspEquiv = totalQuantity * 2; // fluid oz (covers "fl oz")
+    else if (u.includes('ml')) tbspEquiv = totalQuantity / 14.79;
+
+    const COUNT_UNITS = ['', 'ea', 'each', 'whole', 'pc', 'pcs', 'piece', 'pieces'];
+    let fruitCount: number | null = null;
+    if (tbspEquiv !== null) fruitCount = tbspEquiv / tbspPerFruit;
+    else if (COUNT_UNITS.includes(u)) fruitCount = totalQuantity;
+
+    if (fruitCount !== null && fruitCount > 0) {
+      const finalQty = Math.ceil(fruitCount) || 1;
+      return {
+        quantity: finalQty,
+        unit: 'ea',
+        mpuQuantity: finalQty,
+        mpuUnit: 'ea',
+        category: 'Produce',
+        name: cleanedName,
+        displayString: formatDisplay(finalQty, 'ea')
+      };
+    }
   }
 
   // C. Solid Produce MPU Interceptor (Weight-over-Volume)
