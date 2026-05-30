@@ -15,10 +15,12 @@ const FRESH_HERB_KEYWORDS = [
   'chives', 'tarragon', 'rosemary', 'thyme', 'oregano', 'sage'
 ];
 
-const PRODUCE_RETAIL_LOGIC: Record<string, { factor: number; unit: string; retail: string }> = {
-  "lime juice": { factor: 2, unit: "tbsp", retail: "ea" },
-  "lemon juice": { factor: 2, unit: "tbsp", retail: "ea" }
-};
+// Citrus fruits whose juice/zest must resolve to whole fruit ("ea"), not a liquid
+// container. Orange/grapefruit are deliberately excluded — those are bought as
+// cartons/singles, not counted from juice volume. Standard yield per fruit:
+// ~2 tbsp juice, ~1 tbsp zest.
+const CITRUS_FRUITS = ['lime', 'lemon'];
+const CITRUS_TBSP_PER_FRUIT = { juice: 2, zest: 1 };
 
 const SOLID_PRODUCE_MPU: Record<string, { imperial: string; metric: string }> = {
   "mushrooms": { imperial: "8 oz container", metric: "250g container" }
@@ -194,20 +196,33 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     };
   }
 
-  // B. Produce Volume-to-Count Interceptor (Lime Juice -> Ea)
-  if (PRODUCE_RETAIL_LOGIC[searchKey]) {
-    const { factor, unit: refUnit, retail } = PRODUCE_RETAIL_LOGIC[searchKey];
-    let convertedQty = totalQuantity;
-    
-    if (normalizedUnit.includes('tbsp')) convertedQty = totalQuantity / factor;
-    else if (normalizedUnit.includes('cup')) convertedQty = (totalQuantity * 16) / factor;
+  // B. Citrus Juice/Zest Interceptor (Lime/Lemon juice or zest -> whole fruit "ea")
+  // A recipe's "1 tbsp lime zest" or "2 tbsp lime juice" must land on the grocery
+  // list as countable whole fruit, never a liquid container. Keyword match (not an
+  // exact-string lookup) so "fresh lime juice", "zest of 2 limes", etc. all resolve.
+  const citrusFruit = CITRUS_FRUITS.find(f => searchKey.includes(f));
+  const isZest = searchKey.includes('zest') || searchKey.includes('rind');
+  const isJuice = searchKey.includes('juice');
+  if (citrusFruit && (isZest || isJuice)) {
+    const tbspPerFruit = isZest ? CITRUS_TBSP_PER_FRUIT.zest : CITRUS_TBSP_PER_FRUIT.juice;
+    let fruitCount = totalQuantity; // already-counted units (ea) pass through as-is
+    if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) {
+      fruitCount = totalQuantity / tbspPerFruit;
+    } else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) {
+      fruitCount = totalQuantity / (tbspPerFruit * 3);
+    } else if (normalizedUnit.includes('cup')) {
+      fruitCount = (totalQuantity * 16) / tbspPerFruit;
+    }
 
-    const finalQty = Math.ceil(convertedQty) || 1;
+    const finalQty = Math.ceil(fruitCount) || 1;
     return {
       quantity: finalQty,
-      unit: retail,
-      displayString: formatDisplay(finalQty, retail),
-      name: cleanedName
+      unit: 'ea',
+      mpuQuantity: finalQty,
+      mpuUnit: 'ea',
+      category: 'Produce',
+      name: cleanedName,
+      displayString: formatDisplay(finalQty, 'ea')
     };
   }
 
