@@ -15,12 +15,17 @@ const FRESH_HERB_KEYWORDS = [
   'chives', 'tarragon', 'rosemary', 'thyme', 'oregano', 'sage'
 ];
 
-// Citrus fruits whose juice/zest must resolve to whole fruit ("ea"), not a liquid
-// container. Orange/grapefruit are deliberately excluded — those are bought as
-// cartons/singles, not counted from juice volume. Standard yield per fruit:
-// ~2 tbsp juice, ~1 tbsp zest.
-const CITRUS_FRUITS = ['lime', 'lemon'];
-const CITRUS_TBSP_PER_FRUIT = { juice: 2, zest: 1 };
+// Citrus whose JUICE resolves to whole fruit ("ea"). Scoped to lime/lemon: their
+// juice is bought as fresh fruit. Orange/grapefruit are excluded on purpose —
+// their juice is bought as a carton/bottle, not counted whole. tbsp juice per fruit.
+const JUICE_TO_WHOLE_FRUIT: Record<string, number> = { lime: 2, lemon: 2 };
+
+// Citrus whose ZEST resolves to whole fruit ("ea"). Applies to ALL culinary citrus:
+// zest is never sold on its own, so any zest means buying the whole fruit and
+// grating it. tbsp zest per fruit (bigger fruit = more zest per piece).
+const ZEST_TO_WHOLE_FRUIT: Record<string, number> = {
+  lime: 1, lemon: 1, orange: 2, grapefruit: 3, mandarin: 1, clementine: 1, tangerine: 1,
+};
 
 const SOLID_PRODUCE_MPU: Record<string, { imperial: string; metric: string }> = {
   "mushrooms": { imperial: "8 oz container", metric: "250g container" }
@@ -196,15 +201,22 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     };
   }
 
-  // B. Citrus Juice/Zest Interceptor (Lime/Lemon juice or zest -> whole fruit "ea")
-  // A recipe's "1 tbsp lime zest" or "2 tbsp lime juice" must land on the grocery
-  // list as countable whole fruit, never a liquid container. Keyword match (not an
-  // exact-string lookup) so "fresh lime juice", "zest of 2 limes", etc. all resolve.
-  const citrusFruit = CITRUS_FRUITS.find(f => searchKey.includes(f));
+  // B. Citrus Juice/Zest Interceptor (-> whole fruit "ea")
+  // Think globally, act locally: a recipe's "1 tbsp orange zest" or "2 tbsp lime
+  // juice" must land on the grocery list as countable whole fruit, never a liquid
+  // container. Keyword match (not an exact-string lookup) so "fresh lime juice",
+  // "zest of 2 limes", "blood orange zest", etc. all resolve. The form picks the
+  // yield table: zest covers ALL citrus (zest is never sold alone); juice is scoped
+  // to lime/lemon (orange/grapefruit juice is bought as a carton).
+  // EXCEPTION: when the recipe explicitly calls for BOTTLED juice, keep it as the
+  // liquid the recipe asked for — do not convert to fresh fruit.
   const isZest = searchKey.includes('zest') || searchKey.includes('rind');
-  const isJuice = searchKey.includes('juice');
-  if (citrusFruit && (isZest || isJuice)) {
-    const tbspPerFruit = isZest ? CITRUS_TBSP_PER_FRUIT.zest : CITRUS_TBSP_PER_FRUIT.juice;
+  const isBottledJuice = searchKey.includes('bottle') || normalizedUnit.includes('bottle');
+  const isJuice = searchKey.includes('juice') && !isBottledJuice;
+  const yieldTable = isZest ? ZEST_TO_WHOLE_FRUIT : isJuice ? JUICE_TO_WHOLE_FRUIT : null;
+  const citrusFruit = yieldTable ? Object.keys(yieldTable).find(f => searchKey.includes(f)) : undefined;
+  if (citrusFruit && yieldTable) {
+    const tbspPerFruit = yieldTable[citrusFruit];
     let fruitCount = totalQuantity; // already-counted units (ea) pass through as-is
     if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) {
       fruitCount = totalQuantity / tbspPerFruit;
