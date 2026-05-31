@@ -122,6 +122,9 @@ function AppContent() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [recentlySaved, setRecentlySaved] = useState<Set<string>>(new Set());
   const [libraryRecipes, setLibraryRecipes] = useState<any[]>([]);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [librarySort, setLibrarySort] = useState('newest');
+  const [libraryCategories, setLibraryCategories] = useState<Set<string>>(new Set());
   const [editingLibraryRecipe, setEditingLibraryRecipe] = useState<(Recipe & { ingredients: any[] }) | null>(null);
   const [libraryMenus, setLibraryMenus] = useState<any[]>([]);
   const [managingMenu, setManagingMenu] = useState<any | null>(null);
