@@ -2183,12 +2183,12 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
         <SheetContent id="chefflow-root" side="left" className="w-[320px] sm:w-[400px] p-0 border-r-0">
-          <SheetHeader className="p-6 border-b">
-            <SheetTitle className="flex items-center gap-3">
-              <div className="bg-orange-500 p-2 rounded-xl">
-                <BookOpen className="w-5 h-5 text-white" />
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle className="flex items-center gap-1.5 md:gap-2">
+              <div className="bg-orange-500 p-2 rounded-xl shadow-lg shadow-orange-200">
+                <BookOpen className="text-white w-4 h-4 md:w-6 md:h-6" />
               </div>
-              Library
+              <span className="text-base md:text-xl font-bold tracking-tight leading-none">Library</span>
             </SheetTitle>
           </SheetHeader>
           
@@ -2208,7 +2208,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="recipes" className="p-6 m-0 overflow-y-auto h-full pb-32 border-t border-gray-100">
+            <TabsContent value="recipes" className="px-4 pt-4 m-0 overflow-y-auto h-full pb-32">
   {libraryRecipes.length === 0 ? (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 mt-4">
       <BookOpen className="w-10 h-10 text-gray-300 mb-3" />
@@ -2217,8 +2217,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
     </div>
   ) : (
     <>
-      {/* Toolbar: search + sort + category chips */}
-      <div className="flex flex-col gap-3 mt-2 mb-4">
+      {/* Toolbar: search + (subtle) sort. Category filter SHELVED 2026-05-30 — see below. */}
+      <div className="flex flex-col gap-2 mb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <Input
@@ -2232,7 +2232,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         <select
           value={librarySort}
           onChange={(e) => setLibrarySort(e.target.value)}
-          className="h-10 w-full rounded-md border border-gray-100 bg-gray-50/50 px-3 text-sm font-medium text-gray-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200 transition-all"
+          aria-label="Sort recipes"
+          className="self-end h-7 rounded-md border-0 bg-transparent pr-1 text-xs font-medium text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0 cursor-pointer transition-colors"
         >
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
@@ -2242,7 +2243,9 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           <option value="fewest">Fewest ingredients</option>
         </select>
 
-        {availableCategories.length > 0 && (
+        {/* SHELVED 2026-05-30: category filter chips hidden for now; logic (availableCategories /
+            libraryCategories / toggleLibraryCategory) stays wired. Re-enable by deleting `false &&`. */}
+        {false && availableCategories.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {availableCategories.map((cat) => {
               const active = libraryCategories.has(cat);
