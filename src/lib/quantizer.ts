@@ -15,9 +15,16 @@ const FRESH_HERB_KEYWORDS = [
   'chives', 'tarragon', 'rosemary', 'thyme', 'oregano', 'sage'
 ];
 
-const PRODUCE_RETAIL_LOGIC: Record<string, { factor: number; unit: string; retail: string }> = {
-  "lime juice": { factor: 2, unit: "tbsp", retail: "ea" },
-  "lemon juice": { factor: 2, unit: "tbsp", retail: "ea" }
+// Citrus whose JUICE resolves to whole fruit ("ea"). Scoped to lime/lemon: their
+// juice is bought as fresh fruit. Orange/grapefruit are excluded on purpose —
+// their juice is bought as a carton/bottle, not counted whole. tbsp juice per fruit.
+const JUICE_TO_WHOLE_FRUIT: Record<string, number> = { lime: 2, lemon: 2 };
+
+// Citrus whose ZEST resolves to whole fruit ("ea"). Applies to ALL culinary citrus:
+// zest is never sold on its own, so any zest means buying the whole fruit and
+// grating it. tbsp zest per fruit (bigger fruit = more zest per piece).
+const ZEST_TO_WHOLE_FRUIT: Record<string, number> = {
+  lime: 1, lemon: 1, orange: 2, grapefruit: 3, mandarin: 1, clementine: 1, tangerine: 1,
 };
 
 const SOLID_PRODUCE_MPU: Record<string, { imperial: string; metric: string }> = {
@@ -194,21 +201,57 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     };
   }
 
-  // B. Produce Volume-to-Count Interceptor (Lime Juice -> Ea)
-  if (PRODUCE_RETAIL_LOGIC[searchKey]) {
-    const { factor, unit: refUnit, retail } = PRODUCE_RETAIL_LOGIC[searchKey];
-    let convertedQty = totalQuantity;
-    
-    if (normalizedUnit.includes('tbsp')) convertedQty = totalQuantity / factor;
-    else if (normalizedUnit.includes('cup')) convertedQty = (totalQuantity * 16) / factor;
+  // B. Citrus Juice/Zest Interceptor (-> whole fruit "ea")
+  // Think globally, act locally: a recipe's "1 tbsp orange zest" or "2 tbsp lime
+  // juice" must land on the grocery list as countable whole fruit, never a liquid
+  // container. Keyword match (not an exact-string lookup) so "fresh lime juice",
+  // "zest of 2 limes", "blood orange zest", etc. all resolve. The form picks the
+  // yield table: zest covers ALL citrus (zest is never sold alone); juice is scoped
+  // to lime/lemon (orange/grapefruit juice is bought as a carton).
+  // EXCEPTION: bottled/processed juice (bottle, concentrate, cordial, syrup) is
+  // bought as the liquid the recipe names — keep it, do not convert to fresh fruit.
+  const isZest = searchKey.includes('zest') || searchKey.includes('rind');
+  const isProcessedJuice =
+    searchKey.includes('bottle') || normalizedUnit.includes('bottle') ||
+    searchKey.includes('concentrate') || searchKey.includes('cordial') ||
+    searchKey.includes('syrup');
+  const isJuice = searchKey.includes('juice') && !isProcessedJuice;
+  const yieldTable = isZest ? ZEST_TO_WHOLE_FRUIT : isJuice ? JUICE_TO_WHOLE_FRUIT : null;
+  const citrusFruit = yieldTable ? Object.keys(yieldTable).find(f => searchKey.includes(f)) : undefined;
+  if (citrusFruit && yieldTable) {
+    const tbspPerFruit = yieldTable[citrusFruit];
 
-    const finalQty = Math.ceil(convertedQty) || 1;
-    return {
-      quantity: finalQty,
-      unit: retail,
-      displayString: formatDisplay(finalQty, retail),
-      name: cleanedName
-    };
+    // Convert the recipe amount to a whole-fruit count. Recognized volume units are
+    // scaled by the fruit's yield. Count units (ea/whole/…) pass through unchanged —
+    // load-bearing: it keeps consolidation's re-quantize of an already-counted value
+    // idempotent. Unknown units (g, lb, …) leave fruitCount null so we fall through
+    // to generic handling instead of treating the raw number as a fruit count
+    // (e.g. "100 ml" must not become 100 fruit).
+    const u = normalizedUnit;
+    let tbspEquiv: number | null = null;
+    if (u.includes('tbsp') || u.includes('tablespoon')) tbspEquiv = totalQuantity;
+    else if (u.includes('tsp') || u.includes('teaspoon')) tbspEquiv = totalQuantity / 3;
+    else if (u.includes('cup')) tbspEquiv = totalQuantity * 16;
+    else if (u.includes('oz')) tbspEquiv = totalQuantity * 2; // fluid oz (covers "fl oz")
+    else if (u.includes('ml')) tbspEquiv = totalQuantity / 14.79;
+
+    const COUNT_UNITS = ['', 'ea', 'each', 'whole', 'pc', 'pcs', 'piece', 'pieces'];
+    let fruitCount: number | null = null;
+    if (tbspEquiv !== null) fruitCount = tbspEquiv / tbspPerFruit;
+    else if (COUNT_UNITS.includes(u)) fruitCount = totalQuantity;
+
+    if (fruitCount !== null && fruitCount > 0) {
+      const finalQty = Math.ceil(fruitCount) || 1;
+      return {
+        quantity: finalQty,
+        unit: 'ea',
+        mpuQuantity: finalQty,
+        mpuUnit: 'ea',
+        category: 'Produce',
+        name: cleanedName,
+        displayString: formatDisplay(finalQty, 'ea')
+      };
+    }
   }
 
   // C. Solid Produce MPU Interceptor (Weight-over-Volume)
