@@ -1754,7 +1754,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         </header>
         
-        <main className={`flex-1 min-h-0 flex flex-col p-4 md:p-8 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
+        <main className={`flex-1 min-h-0 flex flex-col p-4 md:px-8 md:pt-4 md:pb-2 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
           <div className="fixed inset-0 z-[100] bg-white/50 backdrop-blur-sm flex items-center justify-center">
             <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
               <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
