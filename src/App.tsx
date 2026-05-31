@@ -2264,8 +2264,22 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         )}
       </div>
 
-      <div className="flex flex-col gap-3">
-        {libraryRecipes.map((recipe) => (
+      {filteredLibraryRecipes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+          <Search className="w-8 h-8 text-gray-300 mb-3" />
+          <p className="text-sm font-bold text-gray-600">No recipes match</p>
+          <p className="text-xs text-gray-400 mt-1">Try a different search or filter.</p>
+          <Button
+            variant="ghost"
+            onClick={clearLibraryFilters}
+            className="mt-3 h-8 text-xs font-bold text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filteredLibraryRecipes.map((recipe) => (
         <div key={recipe.id} className="flex flex-col p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-orange-200 transition-colors group">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col min-w-0">
@@ -2312,8 +2326,9 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
           </div>
         </div>
-      ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   )}
             </TabsContent>
