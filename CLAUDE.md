@@ -55,14 +55,17 @@ This replaces the generic global session-init question for ChefFlow sessions. St
 | Session Dashboard | `3618323a-3222-818e-bcce-d927efa2a67b` |
 | Prompt Log DB (a5) | `6e3238da-8759-4bd8-8bd3-58c9bdd19998` |
 | Bug Vault DB *(dashboard: bugs)* | `1bae33c60e91414aa2355d4c7628be29` |
-| Task Queue *(dashboard: features)* | `1057d26d826e440684b5b0867ddc0fd7` |
+| Feature Ledger DB *(dashboard: features)* | `1057d26d826e440684b5b0867ddc0fd7` |
 | SOPs DB *(dashboard: sops)* | `11009a9ca228449a92da806ad806cc65` |
 | Roadmap DB *(dashboard: roadmap)* | `46b3f143519b4509bc7bbf2d388f6edc` |
 | Agents DB *(dashboard: agents)* | `7ef479ecde454cbfb5e9fc21d2afedaf` |
 | Scratchpad DB *(dashboard: scratchpad)* | `4cdc9baa19c64eb689c06a2ac1dd39b6` |
 | Wishlist DB *(dashboard: wishlist)* | `c2a113bc4dc9478ab3857b6ac0d989f5` |
+| Task Queue DB *(cron only — `NOTION_TASK_QUEUE_ID`)* | `2e0d4865-a0cf-468b-8815-97ed41cba793` |
 
 The seven DBs tagged *(dashboard: …)* back the live ChefFlow dashboard at https://chefflow-dashboard.vercel.app via its `/api/sync` serverless function. Updates to those DBs reflect on the dashboard on next pull/refresh.
+
+> **Task Queue vs Feature Ledger — don't confuse them.** The dashboard's *features* tab is backed by **Feature Ledger** (`1057…`), which was previously mislabeled "Task Queue" in this table. The actual **Task Queue** is a separate database (`2e0d4865…`) read only by the weekly `chefflow-ops` Sunday Pulse cron via the `NOTION_TASK_QUEUE_ID` secret — it is **not** a dashboard surface. The old markdown Task Queue *page* (`3618323a-3222-81ac-9461-e69addc6b3f9`) was retired 2026-05-23 (now a redirect stub). The cron's Notion integration **"ChefFlow Ops Agent 3"** must be connected to the Task Queue DB (Notion ⋯ → Connections), or the weekly Task Queue delta silently returns empty.
 
 ## Stack context
 
