@@ -752,7 +752,7 @@ export function quantize(name: string, quantity: number | string, unit: string, 
         return {
           quantity: grams / 453.592, unit: 'lb', mpuQuantity: lb, mpuUnit: 'lb',
           name: cleanedName,
-          displayString: `${lb} lb (${lb} box${lb === 1 ? '' : 'es'})`,
+          displayString: `${lb} lb`,
         };
       }
 
