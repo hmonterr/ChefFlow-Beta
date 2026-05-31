@@ -654,6 +654,30 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     }
   }
 
+  // Baking chips (chocolate / white / butterscotch chips, chunks, morsels) are a
+  // SOLID sold by weight in ~12 oz bags — not a liquid. Without this they hit the
+  // cup->fluid-oz liquid path and showed "16 oz (1 Pint)". Convert volume by weight
+  // (1 cup chips = 6 oz), round UP to a 12 oz bag, and show the weight only.
+  const isBakingChip =
+    (searchKey.includes('chocolate') || searchKey.includes('butterscotch')) &&
+    (searchKey.includes('chip') || searchKey.includes('chop') || searchKey.includes('chunk') || searchKey.includes('morsel'));
+  if (isBakingChip) {
+    const u = normalizedUnit;
+    let oz = totalQuantity;
+    if (u.includes('cup')) oz = totalQuantity * 6;
+    else if (u.includes('tbsp') || u.includes('tbl') || u.includes('tablespoon')) oz = totalQuantity * 0.375;
+    else if (u.includes('tsp') || u.includes('teaspoon')) oz = totalQuantity * 0.125;
+    else if (u.includes('lb') || u.includes('pound')) oz = totalQuantity * 16;
+    else if (u.includes('kg')) oz = totalQuantity * 35.274;
+    else if (u === 'g' || u.includes('gram')) oz = totalQuantity / 28.3495;
+    // else: already oz (or unknown) — treat the number as oz
+    const bagOz = Math.max(1, Math.ceil(oz / 12 - 1e-6)) * 12; // round up to 12 oz bags
+    return {
+      quantity: bagOz, unit: 'oz', mpuQuantity: bagOz, mpuUnit: 'oz',
+      name: cleanedName, displayString: `${bagOz} oz`,
+    };
+  }
+
   // Liquid Logic (With Dairy Shield)
   // The shield is for SOLID dairy (cheese, butter, yogurt). "buttermilk" contains
   // the substring "butter" and would be wrongly shielded into weight handling —

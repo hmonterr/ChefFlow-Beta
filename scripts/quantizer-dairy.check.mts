@@ -92,6 +92,20 @@ const volMix3 = consolidateIngredients([
 noExplosion('consolidate 1 cup + 168 g + 12 oz butter',
   quantize(volMix3[0]!.name!, volMix3[0]!.quantity, volMix3[0]!.unit!, 'Imperial', 1).displayString!);
 
+// --- 4c. CHOCOLATE CHIPS: a solid baking good sold by weight in 12 oz bags, NOT a
+//        liquid. Pre-fix "2 cup" showed "16 oz (1 Pint)". Now: weight (1 cup = 6 oz)
+//        rounded up to a 12 oz bag, shown as plain oz. ---
+check('chocolate chips 2 cup -> 12 oz (was "16 oz (1 Pint)")',
+  quantize('chocolate chips', 2, 'cup', 'Imperial').displayString!, '12 oz');
+check('chocolate chips 1 cup -> 12 oz (6 oz rounds up to a bag)',
+  quantize('chocolate chips', 1, 'cup', 'Imperial').displayString!, '12 oz');
+check('chocolate chips 3 cup -> 24 oz (2 bags)',
+  quantize('chocolate chips', 3, 'cup', 'Imperial').displayString!, '24 oz');
+check('chocolate chops (typo) 2 cup -> 12 oz',
+  quantize('chocolate chops', 2, 'cup', 'Imperial').displayString!, '12 oz');
+check('chocolate chips no longer carries a Pint label',
+  /pint/i.test(quantize('chocolate chips', 2, 'cup', 'Imperial').displayString!) ? 'has-pint' : 'no-pint', 'no-pint');
+
 // --- 5. GUARD: real salt must still be treated as salt (word boundary kept it working) ---
 const seaSalt = quantize('sea salt', 1, 'tsp', 'Imperial');
 check('sea salt 1 tsp -> still Pantry Staple (guard)',
