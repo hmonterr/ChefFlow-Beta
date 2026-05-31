@@ -126,6 +126,7 @@ function AppContent() {
   const [librarySort, setLibrarySort] = useState('newest');
   const [libraryCategories, setLibraryCategories] = useState<Set<string>>(new Set());
   const [editingLibraryRecipe, setEditingLibraryRecipe] = useState<(Recipe & { ingredients: any[] }) | null>(null);
+  const [editingActiveRecipe, setEditingActiveRecipe] = useState<(Recipe & { ingredients: any[] }) | null>(null);
   const [libraryMenus, setLibraryMenus] = useState<any[]>([]);
   const [managingMenu, setManagingMenu] = useState<any | null>(null);
   const [menuTitleInput, setMenuTitleInput] = useState('');
@@ -965,6 +966,144 @@ function AppContent() {
       setEditingItem(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `ingredients/${id}`);
+    }
+  };
+
+  // Open the Active Recipe editor with a staged copy of this recipe's live ingredient docs.
+  // Shows original (pre-quantize) amounts so edits round-trip the way the user entered them.
+  const openActiveRecipeEditor = (recipe: Recipe) => {
+    const recipeIngredients = ingredients
+      .filter(i => i.recipeId === recipe.id)
+      .map(i => ({
+        id: i.id,
+        name: i.name,
+        quantity: i.originalQuantity ?? i.quantity,
+        unit: i.originalUnit ?? i.unit,
+        category: i.category,
+      }));
+    setEditingActiveRecipe({ ...recipe, ingredients: recipeIngredients });
+  };
+
+  // Save staged edits: delete this recipe's existing ingredient docs and recreate from the
+  // staged list (mirrors the proven SYNC LIST pattern). Re-quantize each so MPU/category stay
+  // correct; the board re-quantizes at render but we persist original qty/unit for round-trips.
+  const updateActiveRecipe = async () => {
+    if (!editingActiveRecipe || !user) return;
+    setIsLoading(true);
+    try {
+      const batch = writeBatch(db);
+
+      ingredients
+        .filter(i => i.recipeId === editingActiveRecipe.id)
+        .forEach(i => batch.delete(doc(db, 'ingredients', i.id)));
+
+      editingActiveRecipe.ingredients
+        .filter((ing: any) => (ing.name || '').trim() !== '')
+        .forEach((ing: any) => {
+          const rawQty = typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity);
+          const qty = Number.isFinite(rawQty) ? rawQty : 0;
+          const unit = ing.unit || 'ea';
+          const quantized = quantize(ing.name, qty, unit, unitSystem, 1);
+          const newId = Math.random().toString(36).substr(2, 9);
+          const newIng: Ingredient = {
+            id: newId,
+            recipeId: editingActiveRecipe.id,
+            name: quantized.name || ing.name,
+            quantity: quantized.quantity,
+            unit: quantized.unit,
+            category: (quantized.category as Category) || ing.category || 'Needs Sorting',
+            checked: false,
+            originalQuantity: qty,
+            originalUnit: unit,
+            lineage: [{ type: 'recipe', label: `${editingActiveRecipe.title} (1x)` }],
+            userId: user.uid
+          };
+          batch.set(doc(db, 'ingredients', newId), newIng);
+        });
+
+      if (editingActiveRecipe.title.trim()) {
+        batch.update(doc(db, 'recipes', editingActiveRecipe.id), { title: editingActiveRecipe.title.trim() });
+      }
+
+      await batch.commit();
+
+      // Snapshot the staged edits before clearing state, so the toast closure has stable data.
+      const savedRecipe = editingActiveRecipe;
+      const cleanedIngredients = savedRecipe.ingredients
+        .filter((ing: any) => (ing.name || '').trim() !== '')
+        .map((ing: any) => {
+          const rawQty = typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity);
+          const qty = Number.isFinite(rawQty) ? rawQty : 0;
+          return {
+            name: ing.name,
+            quantity: qty,
+            unit: ing.unit || 'ea',
+            category: ing.category || 'Needs Sorting',
+          };
+        });
+
+      setEditingActiveRecipe(null);
+      toast.success(`${savedRecipe.title} updated.`);
+
+      // If this recipe is bookmarked, offer to push the edits up to the saved Library master.
+      // Mirrors the Library→Active SYNC LIST toast (reverse direction).
+      // Bulletproof match: ID first, then fall back to title — active/library IDs don't always
+      // line up (a board recipe can be minted with a fresh ID), same pattern as updateLibraryRecipe.
+      const savedTitle = (savedRecipe.title || '').toLowerCase().trim();
+      const libraryMatch = libraryRecipes.find(r =>
+        r.id === savedRecipe.id || (r.title || '').toLowerCase().trim() === savedTitle
+      );
+      if (libraryMatch) {
+        toast.custom((t) => (
+          <div className="relative flex items-center gap-4 bg-white border border-gray-200 p-4 rounded-xl shadow-xl min-w-[360px] animate-in fade-in slide-in-from-bottom-4">
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="bg-orange-50 p-2 rounded-full shrink-0">
+              <Bookmark className="w-5 h-5 text-orange-600" />
+            </div>
+
+            <div className="flex-1 pr-6">
+              <p className="text-sm font-bold text-gray-900">
+                Saved to your board.
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+                Also update the saved Library recipe?
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              <Button
+                size="sm"
+                className="bg-[#1A1A1A] hover:bg-black text-white text-[10px] font-bold h-9 px-4 shadow-sm"
+                onClick={async () => {
+                  try {
+                    await updateDoc(doc(db, 'library_recipes', libraryMatch.id), {
+                      title: savedRecipe.title.trim() || libraryMatch.title,
+                      ingredients: cleanedIngredients
+                    });
+                    toast.dismiss(t);
+                    toast.success('Library recipe updated.');
+                  } catch (error) {
+                    toast.dismiss(t);
+                    handleFirestoreError(error, OperationType.UPDATE, `library_recipes/${libraryMatch.id}`);
+                  }
+                }}
+              >
+                UPDATE LIBRARY
+              </Button>
+            </div>
+          </div>
+        ), { duration: 10000 });
+      }
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.UPDATE, `recipes/${editingActiveRecipe.id}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1843,7 +1982,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: recipe.isActive ? 1 : 0.5 }}
                 exit={{ scale: 0.8, opacity: 0 }}
-                className={`flex items-center gap-2 bg-white border px-3 py-1.5 rounded-2xl transition-all ${
+                className={`group flex items-center gap-2 bg-white border px-3 py-1.5 rounded-2xl transition-all ${
                   recipe.isActive ? 'border-gray-200 hover:border-orange-200' : 'border-gray-100 bg-gray-50/50'
                 }`}
               >
@@ -1931,9 +2070,17 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                   <Bookmark className={`w-3.5 h-3.5 ${libraryRecipes.some(r => r.id === recipe.id) ? 'fill-orange-500' : ''}`} />
                 </button>
                 
+                <button
+                  onClick={(e) => { e.stopPropagation(); openActiveRecipeEditor(recipe); }}
+                  className="text-gray-400 hover:text-orange-500 transition-all md:opacity-0 md:group-hover:opacity-100"
+                  title="View / edit ingredients"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+
                 <Separator orientation="vertical" className="h-3 mx-1" />
-                
-                <button 
+
+                <button
                   onClick={(e) => { e.stopPropagation(); removeRecipe(recipe.id); }}
                   className="text-gray-400 hover:text-red-500 transition-colors"
                 >
@@ -2462,6 +2609,145 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
      
 
 {/* --- LIBRARY RECIPE EDITOR DIALOG --- */}
+<Dialog open={!!editingActiveRecipe} onOpenChange={(open) => !open && setEditingActiveRecipe(null)}>
+  <DialogPortal container={document.getElementById('chefflow-root') || document.body}>
+    <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-lg max-h-[85vh] flex flex-col p-6 bg-white rounded-2xl shadow-2xl z-[10000] border-none outline-none overflow-hidden">
+      <DialogHeader className="mb-6 flex flex-row items-center justify-between">
+        <DialogTitle className="text-xl font-black text-gray-900 tracking-tight">Edit Recipe</DialogTitle>
+      </DialogHeader>
+
+      {editingActiveRecipe && (
+        <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pb-4">
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest pl-1">Recipe Name</label>
+            <Input
+              value={editingActiveRecipe.title || ''}
+              onChange={(e) => setEditingActiveRecipe({ ...editingActiveRecipe, title: e.target.value })}
+              className="font-bold text-gray-800 border-gray-100 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-orange-100 transition-all h-11"
+              placeholder="e.g. Signature Basil Pesto"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-[70px_40px_1fr_32px] gap-2 pl-1 pr-0">
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">Qty</span>
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center">Unit</span>
+              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest pl-1">Name</span>
+              <span></span>
+            </div>
+
+            <div className="space-y-2.5">
+              <AnimatePresence mode="popLayout">
+                {editingActiveRecipe.ingredients.map((ing: any, idx: number) => (
+                  <motion.div
+                    layout
+                    key={ing.id ?? idx}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 5 }}
+                    className="grid grid-cols-[70px_40px_1fr_32px] gap-2 items-center"
+                  >
+                    <Input
+                      className="h-9 text-xs px-2 bg-gray-50 border-gray-100 font-bold text-center focus:ring-orange-100 shadow-sm"
+                      type="number"
+                      step="any"
+                      value={ing.quantity ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const parsedVal = val === '' ? '' : parseFloat(val);
+                        const newIngredients = editingActiveRecipe.ingredients.map((item: any, i: number) =>
+                          i === idx ? { ...item, quantity: parsedVal } : item
+                        );
+                        setEditingActiveRecipe({ ...editingActiveRecipe, ingredients: newIngredients });
+                      }}
+                    />
+
+                    <select
+                      className="h-9 text-[10px] px-1 bg-gray-50 border border-gray-100 rounded-md font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-100 appearance-none text-center cursor-pointer shadow-sm"
+                      value={ing.unit || 'ea'}
+                      onChange={(e) => {
+                        const newIngredients = editingActiveRecipe.ingredients.map((item: any, i: number) =>
+                          i === idx ? { ...item, unit: e.target.value } : item
+                        );
+                        setEditingActiveRecipe({ ...editingActiveRecipe, ingredients: newIngredients });
+                      }}
+                    >
+                      {['ea', 'oz', 'lb', 'g', 'kg', 'ml', 'L', 'cup', 'tbsp', 'tsp', 'bunch', 'head', 'pinch'].map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+
+                    <Input
+                      className="h-9 text-xs px-3 bg-gray-50 border-gray-100 focus:bg-white focus:ring-orange-100 shadow-sm"
+                      placeholder="Ingredient name..."
+                      value={ing.name || ''}
+                      onChange={(e) => {
+                        const newIngredients = editingActiveRecipe.ingredients.map((item: any, i: number) =>
+                          i === idx ? { ...item, name: e.target.value } : item
+                        );
+                        setEditingActiveRecipe({ ...editingActiveRecipe, ingredients: newIngredients });
+                      }}
+                    />
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors rounded-full"
+                      onClick={() => {
+                        const newIngredients = editingActiveRecipe.ingredients.filter((_: any, i: number) => i !== idx);
+                        setEditingActiveRecipe({ ...editingActiveRecipe, ingredients: newIngredients });
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-[10px] font-black text-orange-600 border-orange-100 hover:bg-orange-50 border-dashed gap-2 h-10 tracking-widest uppercase transition-all active:scale-[0.98]"
+                  onClick={() => {
+                    const newIng = { id: Math.random().toString(36).substr(2, 9), name: '', quantity: 1, unit: 'ea', category: 'Needs Sorting' };
+                    setEditingActiveRecipe({
+                      ...editingActiveRecipe,
+                      ingredients: [...editingActiveRecipe.ingredients, newIng]
+                    });
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  ADD INGREDIENT
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-4 mt-2 border-t border-gray-100">
+        <Button
+          variant="outline"
+          className="flex-1 h-11 font-bold text-gray-600 border-gray-200 hover:bg-gray-50"
+          onClick={() => setEditingActiveRecipe(null)}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+        <Button
+          className="flex-1 h-11 bg-orange-600 hover:bg-orange-700 text-white font-bold"
+          onClick={updateActiveRecipe}
+          disabled={isLoading}
+        >
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+        </Button>
+      </div>
+    </DialogContent>
+  </DialogPortal>
+</Dialog>
+
 <Dialog open={!!editingLibraryRecipe} onOpenChange={(open) => !open && setEditingLibraryRecipe(null)}>
   <DialogPortal container={document.getElementById('chefflow-root') || document.body}>
 <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-lg max-h-[85vh] flex flex-col p-6 bg-white rounded-2xl shadow-2xl z-[10000] border-none outline-none overflow-hidden">      <DialogHeader className="mb-6 flex flex-row items-center justify-between">
