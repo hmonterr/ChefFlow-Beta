@@ -313,6 +313,11 @@ function AppContent() {
   useEffect(() => {
     if (!user || user.isAnonymous) {
       setLibraryRecipes([]);
+      // Reset filter UI so a prior session's search/sort/category state
+      // doesn't carry into the next account's library on sign-in.
+      setLibrarySearch('');
+      setLibrarySort('newest');
+      setLibraryCategories(new Set());
       return;
     }
 
