@@ -38,6 +38,22 @@ const PRODUCE_ITEMS = ['banana', 'apple', 'lemon', 'onion', 'potato', 'tomato', 
 // ------------------------------------------
 const DAIRY_WEIGHT_SHIELD = ['cheese', 'gorgonzola', 'parmesan', 'feta', 'cheddar', 'butter', 'yogurt'];
 
+// Butter is sold by weight, but recipes routinely call it out by VOLUME
+// (sticks / cups / tablespoons). Without conversion the weight path reads the raw
+// volume number as pounds — "16 tbsp" became "16 lb" → 256 oz, and tbsp+g sums
+// exploded to thousands of oz. Standard butter density (1 cup = 227 g = 2 sticks):
+//   1 stick = 113.5 g · 1 cup = 227 g · 1 tbsp = 14.2 g · 1 tsp = 4.73 g
+// Checked longest-first so "tablespoon" wins before "tbl"/"tbsp" substrings.
+const BUTTER_VOLUME_G: Array<[string, number]> = [
+  ['tablespoon', 14.2], ['teaspoon', 4.73], ['stick', 113.5],
+  ['cup', 227], ['tbsp', 14.2], ['tbl', 14.2], ['tsp', 4.73],
+];
+function butterVolumeToGrams(qty: number, unit: string): number | null {
+  const u = unit.toLowerCase().trim();
+  for (const [k, g] of BUTTER_VOLUME_G) if (u === k || u.includes(k)) return qty * g;
+  return null; // not a recognized butter volume unit (weight units handled elsewhere)
+}
+
 // ------------------------------------------
 // 🥫 SECTION 3: PANTRY & SPICES
 // ------------------------------------------
@@ -645,6 +661,14 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   // liquid retail stepping below.
   const isSolidDairy = DAIRY_WEIGHT_SHIELD.some(k => searchKey.includes(k)) && !/butter\s*milk/.test(searchKey);
 
+  // Butter measured by volume -> weight (the retail unit). Convert up front so the
+  // weight path treats it as grams, not as raw pounds. Scoped to butter; other
+  // solid dairy keeps its existing handling.
+  if (isSolidDairy && searchKey.includes('butter')) {
+    const g = butterVolumeToGrams(totalQuantity, normalizedUnit);
+    if (g !== null) { totalQuantity = g; normalizedUnit = 'g'; }
+  }
+
   if (!isSolidDairy && ['oz', 'fl oz', 'ounce', 'ounces', 'cup', 'cups', 'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters', 'tbsp', 'tbl', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons'].includes(normalizedUnit)) {
     if (system === 'Imperial') {
       let oz = totalQuantity;
@@ -888,8 +912,15 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
       const exUnit = (existing.unit || '').toLowerCase();
       const itUnit = (item.unit || '').toLowerCase();
       
-      // BOTTLE-AWARE LIQUID DETECTION
-      const isLiq = (u: string) => ['cup', 'tbsp', 'tbl', 'tsp', 'oz', 'ml', 'l', 'bottle', 'jar'].some(l => u.includes(l));
+      // BOTTLE-AWARE LIQUID DETECTION.
+      // Pure weight units are excluded FIRST: the old list matched 'l' as a
+      // substring, so "lb" (pounds) tested as liquid and got run through toOz/toMl
+      // as if it were LITERS (x33.814). Mixed-unit recipe sums then exploded —
+      // 1 lb + 12 oz -> "3 lb", and several recipes mixing g/oz/cup/lb compounded
+      // to "674 oz". Excluding lb/g/kg here lets the weight branch below handle them.
+      const isLiq = (u: string) =>
+        !/^(lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms)$/.test(u) &&
+        ['cup', 'tbsp', 'tbl', 'tsp', 'oz', 'ml', 'l', 'bottle', 'jar'].some(l => u.includes(l));
       // WEIGHT DETECTION (checked AFTER liquid so 'oz' resolves as fluid when both
       // sides are liquid). Catches the round-trip corruption: quantize normalizes a
       // running weight total to 'oz' on the first merge, then the next raw 'g' item
@@ -898,7 +929,24 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
       const isWt = (u: string) => ['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds'].some(w => u.includes(w));
       
       // --- 2. SYSTEM-AWARE UNIT ALIGNMENT ---
-      if (exUnit !== itUnit && isLiq(exUnit) && isLiq(itUnit)) {
+      // Butter first: it sums in grams no matter how each source expressed it
+      // (stick/cup/tbsp/oz/lb/g). Volume units go through butter density; weight
+      // units convert normally. Without this, tbsp+g naive-added then re-quantized
+      // as pounds exploded (8 tbsp + 227 g -> "3760 oz").
+      const mergeName = (existing.name || '').toLowerCase();
+      const isButter = mergeName.includes('butter') && !/butter\s*milk/.test(mergeName);
+      const toButterG = (qty: number, u: string) => {
+         const v = butterVolumeToGrams(qty, u);
+         if (v !== null) return v;
+         if (u.includes('kg')) return qty * 1000;
+         if (u.includes('lb') || u.includes('pound')) return qty * 453.59;
+         if (u.includes('oz') || u.includes('ounce')) return qty * 28.35;
+         return qty; // grams
+      };
+      if (isButter) {
+         existing.quantity = toButterG(currentQty, exUnit) + toButterG(safeAdd, itUnit);
+         existing.unit = 'g';
+      } else if (exUnit !== itUnit && isLiq(exUnit) && isLiq(itUnit)) {
          if (system === 'Metric') {
             const toMl = (qty: number, u: string) => {
                if (u.includes('bottle')) return qty * extractSize(u, 500);

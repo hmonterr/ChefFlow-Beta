@@ -60,6 +60,35 @@ const rt = consolidateIngredients([
 check('3x unsalted butter (508 g) consolidates to ~18 oz',
   rt[0]?.displayString || '', '18 oz');
 
+// --- 4b. BUTTER MATH: volume-measured butter must default to WEIGHT, never be read
+//        as pounds. Density: 1 cup=227g, 1 stick=113.5g, 1 tbsp=14.2g, 1 tsp=4.73g.
+//        Pre-fix these exploded (16 tbsp -> "16 lb" -> 256 oz; 8 tbsp + 227 g -> 3760 oz).
+//        The cheese override rounds up to the next whole oz, so values land a touch high. ---
+function noExplosion(desc: string, displayString: string) {
+  const m = displayString.match(/^(\d+(?:\.\d+)?)\s*oz$/);
+  const ok = !!m && parseFloat(m![1]) < 64; // lands on oz weight, sane shopping amount
+  if (ok) { passed++; console.log(`PASS  ${desc}  ::  ${displayString}`); }
+  else { failed++; console.log(`FAIL  ${desc}  ::  got "${displayString}" (want sane oz weight)`); }
+}
+noExplosion('butter 1 cup -> oz weight', quantize('butter, unsalted', 1, 'cup', 'Imperial').displayString!);
+noExplosion('butter 8 tbsp -> oz weight', quantize('butter, unsalted', 8, 'tbsp', 'Imperial').displayString!);
+noExplosion('butter 2 sticks -> oz weight', quantize('butter, unsalted', 2, 'stick', 'Imperial').displayString!);
+
+const volMix = consolidateIngredients([
+  { id: 'a', name: 'butter, unsalted', quantity: 8, unit: 'tbsp' },
+  { id: 'b', name: 'butter, unsalted', quantity: 227, unit: 'g' },
+] as any, 'Imperial');
+noExplosion('consolidate 8 tbsp + 227 g butter (was 3760 oz)',
+  quantize(volMix[0]!.name!, volMix[0]!.quantity, volMix[0]!.unit!, 'Imperial', 1).displayString!);
+
+const volMix3 = consolidateIngredients([
+  { id: 'a', name: 'butter, unsalted', quantity: 1, unit: 'cup' },
+  { id: 'b', name: 'butter, unsalted', quantity: 168, unit: 'g' },
+  { id: 'c', name: 'butter, unsalted', quantity: 12, unit: 'oz' },
+] as any, 'Imperial');
+noExplosion('consolidate 1 cup + 168 g + 12 oz butter',
+  quantize(volMix3[0]!.name!, volMix3[0]!.quantity, volMix3[0]!.unit!, 'Imperial', 1).displayString!);
+
 // --- 5. GUARD: real salt must still be treated as salt (word boundary kept it working) ---
 const seaSalt = quantize('sea salt', 1, 'tsp', 'Imperial');
 check('sea salt 1 tsp -> still Pantry Staple (guard)',
