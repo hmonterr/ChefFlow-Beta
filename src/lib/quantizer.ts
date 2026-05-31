@@ -737,6 +737,25 @@ export function quantize(name: string, quantity: number | string, unit: string, 
       else if (normalizedUnit.includes('kg')) lbs = totalQuantity * 2.20462;
       else if (normalizedUnit.includes('cup') && isSolidDairy) lbs = (totalQuantity * 4) / 16; 
 
+      // --- BUTTER RETAIL MPU (IMPERIAL) ---
+      // Butter is sold in 1 lb boxes (4 sticks), not loose ounces — "6 oz" isn't a
+      // buyable unit. Round UP to whole pounds, minimum one box. Volume units were
+      // already normalized to grams upstream; the epsilon keeps an exact 1 lb / 16 oz
+      // from tipping into 2 boxes via float drift.
+      if (searchKey.includes('butter')) {
+        const grams =
+          (normalizedUnit.includes('oz') || normalizedUnit.includes('ounce')) ? totalQuantity * 28.3495 :
+          normalizedUnit.includes('kg') ? totalQuantity * 1000 :
+          (normalizedUnit.includes('lb') || normalizedUnit.includes('pound')) ? totalQuantity * 453.592 :
+          totalQuantity; // grams
+        const lb = Math.max(1, Math.ceil(grams / 453.592 - 1e-6));
+        return {
+          quantity: grams / 453.592, unit: 'lb', mpuQuantity: lb, mpuUnit: 'lb',
+          name: cleanedName,
+          displayString: `${lb} lb (${lb} box${lb === 1 ? '' : 'es'})`,
+        };
+      }
+
       // --- SURGICAL CHEESE OVERRIDE (IMPERIAL) ---
       if (isSolidDairy) {
         const mpuOz = Math.max(4, Math.ceil(lbs * 16)); // 1oz steps, 4oz floor

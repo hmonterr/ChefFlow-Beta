@@ -25,14 +25,17 @@ function check(desc: string, got: string, want: string) {
 }
 
 // --- 1. butter, unsalted must NOT route to pantry lb-rounding; uses dairy oz ---
-check('butter, unsalted 168 g -> dairy oz (not lb, not pantry)',
-  quantize('butter, unsalted', 168, 'g', 'Imperial').displayString!, '6 oz');
-check('butter, salted 168 g -> dairy oz (salted also has "salt" substring)',
-  quantize('butter, salted', 168, 'g', 'Imperial').displayString!, '6 oz');
-check('unsalted butter (no comma) 168 g -> dairy oz (rootNoun salt guard)',
-  quantize('unsalted butter', 168, 'g', 'Imperial').displayString!, '6 oz');
-check('plain butter 32 oz unchanged',
-  quantize('butter', 32, 'oz', 'Imperial').displayString!, '32 oz');
+// Butter retails in 1 lb boxes (round up, min 1), NOT loose oz. 168 g -> 1 box.
+check('butter, unsalted 168 g -> 1 lb box (not lb-rounding bug, not pantry)',
+  quantize('butter, unsalted', 168, 'g', 'Imperial').displayString!, '1 lb (1 box)');
+check('butter, salted 168 g -> 1 lb box (salted also has "salt" substring)',
+  quantize('butter, salted', 168, 'g', 'Imperial').displayString!, '1 lb (1 box)');
+check('unsalted butter (no comma) 168 g -> 1 lb box (rootNoun salt guard)',
+  quantize('unsalted butter', 168, 'g', 'Imperial').displayString!, '1 lb (1 box)');
+check('plain butter 32 oz -> 2 lb boxes (16 oz boundary stays 1 box per lb)',
+  quantize('butter', 32, 'oz', 'Imperial').displayString!, '2 lb (2 boxes)');
+check('butter 16 oz exactly -> 1 lb (no float overshoot to 2)',
+  quantize('butter', 16, 'oz', 'Imperial').displayString!, '1 lb (1 box)');
 
 // small unsalted butter must NOT be labeled a salt "Pantry Staple"
 const smallButter = quantize('butter, unsalted', 50, 'g', 'Imperial');
@@ -56,23 +59,23 @@ const rt = consolidateIngredients([
   { id: 'b', name: 'butter, unsalted', quantity: 113, unit: 'g' },
   { id: 'c', name: 'butter, unsalted', quantity: 227, unit: 'g' },
 ] as any, 'Imperial');
-// 508 g ~= 17.9 oz -> 18 oz; the bug produced 237 oz / "169 lb"
-check('3x unsalted butter (508 g) consolidates to ~18 oz',
-  rt[0]?.displayString || '', '18 oz');
+// 508 g ~= 1.12 lb -> rounds up to 2 lb boxes; the bug produced 237 oz / "169 lb"
+check('3x unsalted butter (508 g) consolidates to 2 lb boxes',
+  rt[0]?.displayString || '', '2 lb (2 boxes)');
 
-// --- 4b. BUTTER MATH: volume-measured butter must default to WEIGHT, never be read
-//        as pounds. Density: 1 cup=227g, 1 stick=113.5g, 1 tbsp=14.2g, 1 tsp=4.73g.
-//        Pre-fix these exploded (16 tbsp -> "16 lb" -> 256 oz; 8 tbsp + 227 g -> 3760 oz).
-//        The cheese override rounds up to the next whole oz, so values land a touch high. ---
+// --- 4b. BUTTER MATH: volume-measured butter must default to WEIGHT (retail = 1 lb
+//        boxes), never be read as pounds. Density: 1 cup=227g, 1 stick=113.5g,
+//        1 tbsp=14.2g, 1 tsp=4.73g. Pre-fix these exploded (16 tbsp -> "16 lb" ->
+//        256 oz; 8 tbsp + 227 g -> 3760 oz). Now they land on a small box count. ---
 function noExplosion(desc: string, displayString: string) {
-  const m = displayString.match(/^(\d+(?:\.\d+)?)\s*oz$/);
-  const ok = !!m && parseFloat(m![1]) < 64; // lands on oz weight, sane shopping amount
+  const m = displayString.match(/^(\d+) lb \(\1 box(?:es)?\)$/);
+  const ok = !!m && parseInt(m![1], 10) >= 1 && parseInt(m![1], 10) < 10; // sane box count
   if (ok) { passed++; console.log(`PASS  ${desc}  ::  ${displayString}`); }
-  else { failed++; console.log(`FAIL  ${desc}  ::  got "${displayString}" (want sane oz weight)`); }
+  else { failed++; console.log(`FAIL  ${desc}  ::  got "${displayString}" (want sane lb-box count)`); }
 }
-noExplosion('butter 1 cup -> oz weight', quantize('butter, unsalted', 1, 'cup', 'Imperial').displayString!);
-noExplosion('butter 8 tbsp -> oz weight', quantize('butter, unsalted', 8, 'tbsp', 'Imperial').displayString!);
-noExplosion('butter 2 sticks -> oz weight', quantize('butter, unsalted', 2, 'stick', 'Imperial').displayString!);
+noExplosion('butter 1 cup -> lb box', quantize('butter, unsalted', 1, 'cup', 'Imperial').displayString!);
+noExplosion('butter 8 tbsp -> lb box', quantize('butter, unsalted', 8, 'tbsp', 'Imperial').displayString!);
+noExplosion('butter 2 sticks -> lb box', quantize('butter, unsalted', 2, 'stick', 'Imperial').displayString!);
 
 const volMix = consolidateIngredients([
   { id: 'a', name: 'butter, unsalted', quantity: 8, unit: 'tbsp' },
