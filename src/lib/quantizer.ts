@@ -809,6 +809,24 @@ const NOUN_INVERSIONS: Record<string, string> = {
   'grapeseed oil': 'Oil, grapeseed'
 };
 
+// Collapse simple English plurals so "Apple" (recipe) and "Apples" (manual add)
+// share ONE consolidation key and sum to 5. Used ONLY to build the merge key —
+// never the display name, so a non-word stem (e.g. "molass") is harmless: both
+// spellings map to the same token, so they self-merge. The point is consistency
+// (singular and plural reduce to the same string), not grammatical correctness.
+// Guards skip words where a trailing "s" is NOT a plural: -ss (molasses), -us
+// (asparagus, couscous, hummus, citrus), -is (chassis), -ous. Last-word handling
+// is implicit — multi-word names ("green onions" → "green onion") strip cleanly.
+function singularizeKey(s: string): string {
+  const w = s.toLowerCase().trim();
+  if (w.length < 4) return w;                          // too short to safely strip ("oat" vs "oats" still works at 4)
+  if (/(ss|us|is|ous)$/.test(w)) return w;             // molasses, asparagus, couscous, citrus
+  if (/ies$/.test(w)) return w.slice(0, -3) + 'y';     // berries → berry, cherries → cherry
+  if (/(ses|xes|zes|ches|shes|oes)$/.test(w)) return w.slice(0, -2); // tomatoes→tomato, boxes→box, dishes→dish, glasses→glass
+  if (/s$/.test(w)) return w.slice(0, -1);             // apples → apple, eggs → egg
+  return w;
+}
+
 export function consolidateIngredients(ingredients: Ingredient[], system: UnitSystem = 'Imperial'): Ingredient[] {
   const map = new Map<string, Ingredient>();
   if (!ingredients || !Array.isArray(ingredients)) return [];
@@ -842,7 +860,9 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
           //     "butter, salted" ≠ "butter, unsalted"). The prompt layer already
           //     dedupes generic + quantified variants, so dropping the comma-strip
           //     here does not regress that path.
-          key = cleanIngredientName(rawName).toLowerCase().trim();
+          // singularizeKey collapses plural drift ("Apple" recipe vs "Apples"
+          //     manual add, or two recipes that disagree) so they sum correctly.
+          key = singularizeKey(cleanIngredientName(rawName).toLowerCase().trim());
        }
     }
 
