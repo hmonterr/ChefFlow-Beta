@@ -296,7 +296,10 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   }
 
   // F. The Global Pantry Pinch Shield
-  const isPinchable = searchKey.includes('salt') || 
+  // Word-boundary salt match: "salt"/"sea salt" qualify, but "unsalted"/"salted"
+  // (as in "butter, unsalted") must NOT — otherwise butter is mislabeled a pantry
+  // pinch/staple and never reaches the dairy weight logic.
+  const isPinchable = /\bsalt\b/.test(searchKey) ||
                       (searchKey.includes('pepper') && (searchKey.includes('black') || searchKey.includes('white')) && !searchKey.includes('bell') && !searchKey.includes('cracked') && !searchKey.includes('corn'));
 
   if (isPinchable) {
@@ -367,7 +370,9 @@ export function quantize(name: string, quantity: number | string, unit: string, 
       normalizedUnit = 'ea'; 
       // -------------------------------------------
 
-    } else if (rootNoun.includes("salt")) {
+    } else if (/\bsalt\b/.test(rootNoun)) {
+      // Word boundary: "salt"/"sea salt" only. Guards against "unsalted butter"
+      // (no-comma form) being routed to the salt-container exception.
       exception = MPU_EXCEPTIONS["salt"];
     } else if (rootNoun === "sugar") {
       
@@ -588,8 +593,11 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     }
   }
 
-  // Pantry Rounding for staples
-  if (PANTRY_STAPLES.some(staple => normalizedName.includes(staple))) {
+  // Pantry Rounding for staples. Word-boundary match so a staple token is only
+  // hit as a whole word: critical for 'salt', which otherwise matches the "salt"
+  // inside "unsalted"/"salted" and drags "butter, unsalted" into grain/flour
+  // pound-rounding instead of the dairy weight shield below.
+  if (PANTRY_STAPLES.some(staple => new RegExp(`\\b${staple}\\b`).test(normalizedName))) {
     if (system === 'Imperial') {
       let lbs = totalQuantity;
       if (normalizedUnit === 'g' || normalizedUnit === 'gram' || normalizedUnit === 'grams') lbs = totalQuantity * 0.00220462;
@@ -631,13 +639,17 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   }
 
   // Liquid Logic (With Dairy Shield)
-  const isSolidDairy = DAIRY_WEIGHT_SHIELD.some(k => searchKey.includes(k));
+  // The shield is for SOLID dairy (cheese, butter, yogurt). "buttermilk" contains
+  // the substring "butter" and would be wrongly shielded into weight handling —
+  // it is a liquid, sold by the carton/quart, so exclude it and let it fall to the
+  // liquid retail stepping below.
+  const isSolidDairy = DAIRY_WEIGHT_SHIELD.some(k => searchKey.includes(k)) && !/butter\s*milk/.test(searchKey);
 
-  if (!isSolidDairy && ['oz', 'fl oz', 'ounce', 'ounces', 'cup', 'cups', 'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons'].includes(normalizedUnit)) {
+  if (!isSolidDairy && ['oz', 'fl oz', 'ounce', 'ounces', 'cup', 'cups', 'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters', 'tbsp', 'tbl', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons'].includes(normalizedUnit)) {
     if (system === 'Imperial') {
       let oz = totalQuantity;
       if (normalizedUnit.includes('cup')) oz = totalQuantity * 8;
-      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) oz = totalQuantity * 0.5;
+      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tbl') || normalizedUnit.includes('tablespoon')) oz = totalQuantity * 0.5;
       else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) oz = totalQuantity * 0.166667;
       else if (normalizedUnit === 'ml' || normalizedUnit === 'milliliter' || normalizedUnit === 'milliliters') oz = totalQuantity / 29.573;
       else if (normalizedUnit === 'l' || normalizedUnit === 'liter' || normalizedUnit === 'liters') oz = (totalQuantity * 1000) / 29.573;
@@ -666,7 +678,7 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     } else {
       let ml = totalQuantity;
       if (normalizedUnit.includes('cup')) ml = totalQuantity * 240;
-      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) ml = totalQuantity * 15;
+      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tbl') || normalizedUnit.includes('tablespoon')) ml = totalQuantity * 15;
       else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) ml = totalQuantity * 5;
       else if (normalizedUnit === 'oz' || normalizedUnit === 'fl oz' || normalizedUnit === 'ounce' || normalizedUnit === 'ounces') ml = totalQuantity * 29.573;
       else if (normalizedUnit === 'l' || normalizedUnit === 'liter' || normalizedUnit === 'liters') ml = totalQuantity * 1000;
@@ -878,6 +890,12 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
       
       // BOTTLE-AWARE LIQUID DETECTION
       const isLiq = (u: string) => ['cup', 'tbsp', 'tbl', 'tsp', 'oz', 'ml', 'l', 'bottle', 'jar'].some(l => u.includes(l));
+      // WEIGHT DETECTION (checked AFTER liquid so 'oz' resolves as fluid when both
+      // sides are liquid). Catches the round-trip corruption: quantize normalizes a
+      // running weight total to 'oz' on the first merge, then the next raw 'g' item
+      // gets naive-added to that oz number — mixing scales and inflating the total
+      // (e.g. 508 g of butter rendering as "237 oz" / "169 lb"). Align to grams first.
+      const isWt = (u: string) => ['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds'].some(w => u.includes(w));
       
       // --- 2. SYSTEM-AWARE UNIT ALIGNMENT ---
       if (exUnit !== itUnit && isLiq(exUnit) && isLiq(itUnit)) {
@@ -908,6 +926,18 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
             existing.quantity = toOz(currentQty, exUnit) + toOz(safeAdd, itUnit);
             existing.unit = 'oz';
          }
+      } else if (exUnit !== itUnit && isWt(exUnit) && isWt(itUnit)) {
+         // Normalize both weights to grams before summing, then let the re-quantize
+         // engine convert back to the system's retail unit. Prevents oz+g (or lb+g)
+         // mixed-scale addition from blowing the total up.
+         const toG = (qty: number, u: string) => {
+            if (u.includes('kg')) return qty * 1000;
+            if (u.includes('lb') || u.includes('pound')) return qty * 453.59;
+            if (u.includes('oz') || u.includes('ounce')) return qty * 28.35;
+            return qty; // already grams
+         };
+         existing.quantity = toG(currentQty, exUnit) + toG(safeAdd, itUnit);
+         existing.unit = 'g';
       } else {
          existing.quantity = currentQty + safeAdd;
       }
