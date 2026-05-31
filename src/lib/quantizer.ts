@@ -38,6 +38,22 @@ const PRODUCE_ITEMS = ['banana', 'apple', 'lemon', 'onion', 'potato', 'tomato', 
 // ------------------------------------------
 const DAIRY_WEIGHT_SHIELD = ['cheese', 'gorgonzola', 'parmesan', 'feta', 'cheddar', 'butter', 'yogurt'];
 
+// Butter is sold by weight, but recipes routinely call it out by VOLUME
+// (sticks / cups / tablespoons). Without conversion the weight path reads the raw
+// volume number as pounds — "16 tbsp" became "16 lb" → 256 oz, and tbsp+g sums
+// exploded to thousands of oz. Standard butter density (1 cup = 227 g = 2 sticks):
+//   1 stick = 113.5 g · 1 cup = 227 g · 1 tbsp = 14.2 g · 1 tsp = 4.73 g
+// Checked longest-first so "tablespoon" wins before "tbl"/"tbsp" substrings.
+const BUTTER_VOLUME_G: Array<[string, number]> = [
+  ['tablespoon', 14.2], ['teaspoon', 4.73], ['stick', 113.5],
+  ['cup', 227], ['tbsp', 14.2], ['tbl', 14.2], ['tsp', 4.73],
+];
+function butterVolumeToGrams(qty: number, unit: string): number | null {
+  const u = unit.toLowerCase().trim();
+  for (const [k, g] of BUTTER_VOLUME_G) if (u === k || u.includes(k)) return qty * g;
+  return null; // not a recognized butter volume unit (weight units handled elsewhere)
+}
+
 // ------------------------------------------
 // 🥫 SECTION 3: PANTRY & SPICES
 // ------------------------------------------
@@ -296,7 +312,10 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   }
 
   // F. The Global Pantry Pinch Shield
-  const isPinchable = searchKey.includes('salt') || 
+  // Word-boundary salt match: "salt"/"sea salt" qualify, but "unsalted"/"salted"
+  // (as in "butter, unsalted") must NOT — otherwise butter is mislabeled a pantry
+  // pinch/staple and never reaches the dairy weight logic.
+  const isPinchable = /\bsalt\b/.test(searchKey) ||
                       (searchKey.includes('pepper') && (searchKey.includes('black') || searchKey.includes('white')) && !searchKey.includes('bell') && !searchKey.includes('cracked') && !searchKey.includes('corn'));
 
   if (isPinchable) {
@@ -367,7 +386,9 @@ export function quantize(name: string, quantity: number | string, unit: string, 
       normalizedUnit = 'ea'; 
       // -------------------------------------------
 
-    } else if (rootNoun.includes("salt")) {
+    } else if (/\bsalt\b/.test(rootNoun)) {
+      // Word boundary: "salt"/"sea salt" only. Guards against "unsalted butter"
+      // (no-comma form) being routed to the salt-container exception.
       exception = MPU_EXCEPTIONS["salt"];
     } else if (rootNoun === "sugar") {
       
@@ -588,8 +609,11 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     }
   }
 
-  // Pantry Rounding for staples
-  if (PANTRY_STAPLES.some(staple => normalizedName.includes(staple))) {
+  // Pantry Rounding for staples. Word-boundary match so a staple token is only
+  // hit as a whole word: critical for 'salt', which otherwise matches the "salt"
+  // inside "unsalted"/"salted" and drags "butter, unsalted" into grain/flour
+  // pound-rounding instead of the dairy weight shield below.
+  if (PANTRY_STAPLES.some(staple => new RegExp(`\\b${staple}\\b`).test(normalizedName))) {
     if (system === 'Imperial') {
       let lbs = totalQuantity;
       if (normalizedUnit === 'g' || normalizedUnit === 'gram' || normalizedUnit === 'grams') lbs = totalQuantity * 0.00220462;
@@ -630,14 +654,50 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     }
   }
 
-  // Liquid Logic (With Dairy Shield)
-  const isSolidDairy = DAIRY_WEIGHT_SHIELD.some(k => searchKey.includes(k));
+  // Baking chips (chocolate / white / butterscotch chips, chunks, morsels) are a
+  // SOLID sold by weight in ~12 oz bags — not a liquid. Without this they hit the
+  // cup->fluid-oz liquid path and showed "16 oz (1 Pint)". Convert volume by weight
+  // (1 cup chips = 6 oz), round UP to a 12 oz bag, and show the weight only.
+  const isBakingChip =
+    (searchKey.includes('chocolate') || searchKey.includes('butterscotch')) &&
+    (searchKey.includes('chip') || searchKey.includes('chop') || searchKey.includes('chunk') || searchKey.includes('morsel'));
+  if (isBakingChip) {
+    const u = normalizedUnit;
+    let oz = totalQuantity;
+    if (u.includes('cup')) oz = totalQuantity * 6;
+    else if (u.includes('tbsp') || u.includes('tbl') || u.includes('tablespoon')) oz = totalQuantity * 0.375;
+    else if (u.includes('tsp') || u.includes('teaspoon')) oz = totalQuantity * 0.125;
+    else if (u.includes('lb') || u.includes('pound')) oz = totalQuantity * 16;
+    else if (u.includes('kg')) oz = totalQuantity * 35.274;
+    else if (u === 'g' || u.includes('gram')) oz = totalQuantity / 28.3495;
+    // else: already oz (or unknown) — treat the number as oz
+    const bagOz = Math.max(1, Math.ceil(oz / 12 - 1e-6)) * 12; // round up to 12 oz bags
+    return {
+      quantity: bagOz, unit: 'oz', mpuQuantity: bagOz, mpuUnit: 'oz',
+      name: cleanedName, displayString: `${bagOz} oz`,
+    };
+  }
 
-  if (!isSolidDairy && ['oz', 'fl oz', 'ounce', 'ounces', 'cup', 'cups', 'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters', 'tbsp', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons'].includes(normalizedUnit)) {
+  // Liquid Logic (With Dairy Shield)
+  // The shield is for SOLID dairy (cheese, butter, yogurt). "buttermilk" contains
+  // the substring "butter" and would be wrongly shielded into weight handling —
+  // it is a liquid, sold by the carton/quart, so exclude it and let it fall to the
+  // liquid retail stepping below.
+  const isSolidDairy = DAIRY_WEIGHT_SHIELD.some(k => searchKey.includes(k)) && !/butter\s*milk/.test(searchKey);
+
+  // Butter measured by volume -> weight (the retail unit). Convert up front so the
+  // weight path treats it as grams, not as raw pounds. Scoped to butter; other
+  // solid dairy keeps its existing handling.
+  if (isSolidDairy && searchKey.includes('butter')) {
+    const g = butterVolumeToGrams(totalQuantity, normalizedUnit);
+    if (g !== null) { totalQuantity = g; normalizedUnit = 'g'; }
+  }
+
+  if (!isSolidDairy && ['oz', 'fl oz', 'ounce', 'ounces', 'cup', 'cups', 'ml', 'milliliter', 'milliliters', 'l', 'liter', 'liters', 'tbsp', 'tbl', 'tablespoon', 'tablespoons', 'tsp', 'teaspoon', 'teaspoons'].includes(normalizedUnit)) {
     if (system === 'Imperial') {
       let oz = totalQuantity;
       if (normalizedUnit.includes('cup')) oz = totalQuantity * 8;
-      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) oz = totalQuantity * 0.5;
+      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tbl') || normalizedUnit.includes('tablespoon')) oz = totalQuantity * 0.5;
       else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) oz = totalQuantity * 0.166667;
       else if (normalizedUnit === 'ml' || normalizedUnit === 'milliliter' || normalizedUnit === 'milliliters') oz = totalQuantity / 29.573;
       else if (normalizedUnit === 'l' || normalizedUnit === 'liter' || normalizedUnit === 'liters') oz = (totalQuantity * 1000) / 29.573;
@@ -666,7 +726,7 @@ export function quantize(name: string, quantity: number | string, unit: string, 
     } else {
       let ml = totalQuantity;
       if (normalizedUnit.includes('cup')) ml = totalQuantity * 240;
-      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tablespoon')) ml = totalQuantity * 15;
+      else if (normalizedUnit.includes('tbsp') || normalizedUnit.includes('tbl') || normalizedUnit.includes('tablespoon')) ml = totalQuantity * 15;
       else if (normalizedUnit.includes('tsp') || normalizedUnit.includes('teaspoon')) ml = totalQuantity * 5;
       else if (normalizedUnit === 'oz' || normalizedUnit === 'fl oz' || normalizedUnit === 'ounce' || normalizedUnit === 'ounces') ml = totalQuantity * 29.573;
       else if (normalizedUnit === 'l' || normalizedUnit === 'liter' || normalizedUnit === 'liters') ml = totalQuantity * 1000;
@@ -700,6 +760,25 @@ export function quantize(name: string, quantity: number | string, unit: string, 
       else if (normalizedUnit.includes('g')) lbs = totalQuantity * 0.00220462;
       else if (normalizedUnit.includes('kg')) lbs = totalQuantity * 2.20462;
       else if (normalizedUnit.includes('cup') && isSolidDairy) lbs = (totalQuantity * 4) / 16; 
+
+      // --- BUTTER RETAIL MPU (IMPERIAL) ---
+      // Butter is sold in 1 lb boxes (4 sticks), not loose ounces — "6 oz" isn't a
+      // buyable unit. Round UP to whole pounds, minimum one box. Volume units were
+      // already normalized to grams upstream; the epsilon keeps an exact 1 lb / 16 oz
+      // from tipping into 2 boxes via float drift.
+      if (searchKey.includes('butter')) {
+        const grams =
+          (normalizedUnit.includes('oz') || normalizedUnit.includes('ounce')) ? totalQuantity * 28.3495 :
+          normalizedUnit.includes('kg') ? totalQuantity * 1000 :
+          (normalizedUnit.includes('lb') || normalizedUnit.includes('pound')) ? totalQuantity * 453.592 :
+          totalQuantity; // grams
+        const lb = Math.max(1, Math.ceil(grams / 453.592 - 1e-6));
+        return {
+          quantity: grams / 453.592, unit: 'lb', mpuQuantity: lb, mpuUnit: 'lb',
+          name: cleanedName,
+          displayString: `${lb} lb`,
+        };
+      }
 
       // --- SURGICAL CHEESE OVERRIDE (IMPERIAL) ---
       if (isSolidDairy) {
@@ -809,6 +888,24 @@ const NOUN_INVERSIONS: Record<string, string> = {
   'grapeseed oil': 'Oil, grapeseed'
 };
 
+// Collapse simple English plurals so "Apple" (recipe) and "Apples" (manual add)
+// share ONE consolidation key and sum to 5. Used ONLY to build the merge key —
+// never the display name, so a non-word stem (e.g. "molass") is harmless: both
+// spellings map to the same token, so they self-merge. The point is consistency
+// (singular and plural reduce to the same string), not grammatical correctness.
+// Guards skip words where a trailing "s" is NOT a plural: -ss (molasses), -us
+// (asparagus, couscous, hummus, citrus), -is (chassis), -ous. Last-word handling
+// is implicit — multi-word names ("green onions" → "green onion") strip cleanly.
+function singularizeKey(s: string): string {
+  const w = s.toLowerCase().trim();
+  if (w.length < 4) return w;                          // too short to safely strip ("oat" vs "oats" still works at 4)
+  if (/(ss|us|is|ous)$/.test(w)) return w;             // molasses, asparagus, couscous, citrus
+  if (/ies$/.test(w)) return w.slice(0, -3) + 'y';     // berries → berry, cherries → cherry
+  if (/(ses|xes|zes|ches|shes|oes)$/.test(w)) return w.slice(0, -2); // tomatoes→tomato, boxes→box, dishes→dish, glasses→glass
+  if (/s$/.test(w)) return w.slice(0, -1);             // apples → apple, eggs → egg
+  return w;
+}
+
 export function consolidateIngredients(ingredients: Ingredient[], system: UnitSystem = 'Imperial'): Ingredient[] {
   const map = new Map<string, Ingredient>();
   if (!ingredients || !Array.isArray(ingredients)) return [];
@@ -842,7 +939,9 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
           //     "butter, salted" ≠ "butter, unsalted"). The prompt layer already
           //     dedupes generic + quantified variants, so dropping the comma-strip
           //     here does not regress that path.
-          key = cleanIngredientName(rawName).toLowerCase().trim();
+          // singularizeKey collapses plural drift ("Apple" recipe vs "Apples"
+          //     manual add, or two recipes that disagree) so they sum correctly.
+          key = singularizeKey(cleanIngredientName(rawName).toLowerCase().trim());
        }
     }
 
@@ -856,11 +955,41 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
       const exUnit = (existing.unit || '').toLowerCase();
       const itUnit = (item.unit || '').toLowerCase();
       
-      // BOTTLE-AWARE LIQUID DETECTION
-      const isLiq = (u: string) => ['cup', 'tbsp', 'tbl', 'tsp', 'oz', 'ml', 'l', 'bottle', 'jar'].some(l => u.includes(l));
+      // BOTTLE-AWARE LIQUID DETECTION.
+      // Pure weight units are excluded FIRST: the old list matched 'l' as a
+      // substring, so "lb" (pounds) tested as liquid and got run through toOz/toMl
+      // as if it were LITERS (x33.814). Mixed-unit recipe sums then exploded —
+      // 1 lb + 12 oz -> "3 lb", and several recipes mixing g/oz/cup/lb compounded
+      // to "674 oz". Excluding lb/g/kg here lets the weight branch below handle them.
+      const isLiq = (u: string) =>
+        !/^(lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms)$/.test(u) &&
+        ['cup', 'tbsp', 'tbl', 'tsp', 'oz', 'ml', 'l', 'bottle', 'jar'].some(l => u.includes(l));
+      // WEIGHT DETECTION (checked AFTER liquid so 'oz' resolves as fluid when both
+      // sides are liquid). Catches the round-trip corruption: quantize normalizes a
+      // running weight total to 'oz' on the first merge, then the next raw 'g' item
+      // gets naive-added to that oz number — mixing scales and inflating the total
+      // (e.g. 508 g of butter rendering as "237 oz" / "169 lb"). Align to grams first.
+      const isWt = (u: string) => ['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms', 'oz', 'ounce', 'ounces', 'lb', 'lbs', 'pound', 'pounds'].some(w => u.includes(w));
       
       // --- 2. SYSTEM-AWARE UNIT ALIGNMENT ---
-      if (exUnit !== itUnit && isLiq(exUnit) && isLiq(itUnit)) {
+      // Butter first: it sums in grams no matter how each source expressed it
+      // (stick/cup/tbsp/oz/lb/g). Volume units go through butter density; weight
+      // units convert normally. Without this, tbsp+g naive-added then re-quantized
+      // as pounds exploded (8 tbsp + 227 g -> "3760 oz").
+      const mergeName = (existing.name || '').toLowerCase();
+      const isButter = mergeName.includes('butter') && !/butter\s*milk/.test(mergeName);
+      const toButterG = (qty: number, u: string) => {
+         const v = butterVolumeToGrams(qty, u);
+         if (v !== null) return v;
+         if (u.includes('kg')) return qty * 1000;
+         if (u.includes('lb') || u.includes('pound')) return qty * 453.59;
+         if (u.includes('oz') || u.includes('ounce')) return qty * 28.35;
+         return qty; // grams
+      };
+      if (isButter) {
+         existing.quantity = toButterG(currentQty, exUnit) + toButterG(safeAdd, itUnit);
+         existing.unit = 'g';
+      } else if (exUnit !== itUnit && isLiq(exUnit) && isLiq(itUnit)) {
          if (system === 'Metric') {
             const toMl = (qty: number, u: string) => {
                if (u.includes('bottle')) return qty * extractSize(u, 500);
@@ -888,6 +1017,18 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
             existing.quantity = toOz(currentQty, exUnit) + toOz(safeAdd, itUnit);
             existing.unit = 'oz';
          }
+      } else if (exUnit !== itUnit && isWt(exUnit) && isWt(itUnit)) {
+         // Normalize both weights to grams before summing, then let the re-quantize
+         // engine convert back to the system's retail unit. Prevents oz+g (or lb+g)
+         // mixed-scale addition from blowing the total up.
+         const toG = (qty: number, u: string) => {
+            if (u.includes('kg')) return qty * 1000;
+            if (u.includes('lb') || u.includes('pound')) return qty * 453.59;
+            if (u.includes('oz') || u.includes('ounce')) return qty * 28.35;
+            return qty; // already grams
+         };
+         existing.quantity = toG(currentQty, exUnit) + toG(safeAdd, itUnit);
+         existing.unit = 'g';
       } else {
          existing.quantity = currentQty + safeAdd;
       }
