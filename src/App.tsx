@@ -980,6 +980,7 @@ function AppContent() {
         quantity: i.originalQuantity ?? i.quantity,
         unit: i.originalUnit ?? i.unit,
         category: i.category,
+        hideQuantity: i.hideQuantity ?? false,
       }));
     setEditingActiveRecipe({ ...recipe, ingredients: recipeIngredients });
   };
@@ -1001,21 +1002,25 @@ function AppContent() {
         .filter((ing: any) => (ing.name || '').trim() !== '')
         .forEach((ing: any) => {
           const rawQty = typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity);
-          const qty = Number.isFinite(rawQty) ? rawQty : 0;
+          const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
           const unit = ing.unit || 'ea';
-          const quantized = quantize(ing.name, qty, unit, unitSystem, 1);
           const newId = Math.random().toString(36).substr(2, 9);
+          // Persist RAW qty/unit and let the board quantize at render time (same as
+          // loadFromLibrary and the Library SYNC path). Re-quantizing here would
+          // double-quantize on the next render and corrupt MPU items — e.g. 18 eggs →
+          // stored as 2 cartons → re-rounded to 1 carton.
           const newIng: Ingredient = {
             id: newId,
             recipeId: editingActiveRecipe.id,
-            name: quantized.name || ing.name,
-            quantity: quantized.quantity,
-            unit: quantized.unit,
-            category: (quantized.category as Category) || ing.category || 'Needs Sorting',
+            name: ing.name,
+            quantity: qty,
+            unit: unit,
+            category: ing.category || 'Needs Sorting',
             checked: false,
             originalQuantity: qty,
             originalUnit: unit,
-            lineage: [{ type: 'recipe', label: `${editingActiveRecipe.title} (1x)` }],
+            hideQuantity: ing.hideQuantity ?? false,
+            lineage: [{ type: 'recipe', label: `${editingActiveRecipe.title} (${editingActiveRecipe.multiplier ?? 1}x)` }],
             userId: user.uid
           };
           batch.set(doc(db, 'ingredients', newId), newIng);
@@ -1033,7 +1038,7 @@ function AppContent() {
         .filter((ing: any) => (ing.name || '').trim() !== '')
         .map((ing: any) => {
           const rawQty = typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity);
-          const qty = Number.isFinite(rawQty) ? rawQty : 0;
+          const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
           return {
             name: ing.name,
             quantity: qty,
@@ -1050,9 +1055,13 @@ function AppContent() {
       // Bulletproof match: ID first, then fall back to title — active/library IDs don't always
       // line up (a board recipe can be minted with a fresh ID), same pattern as updateLibraryRecipe.
       const savedTitle = (savedRecipe.title || '').toLowerCase().trim();
-      const libraryMatch = libraryRecipes.find(r =>
-        r.id === savedRecipe.id || (r.title || '').toLowerCase().trim() === savedTitle
-      );
+      // Prefer exact id match. Fall back to title only when it's unambiguous (exactly one
+      // title match) so we never clobber a different saved recipe that shares a name.
+      let libraryMatch = libraryRecipes.find(r => r.id === savedRecipe.id);
+      if (!libraryMatch) {
+        const titleMatches = libraryRecipes.filter(r => (r.title || '').toLowerCase().trim() === savedTitle);
+        if (titleMatches.length === 1) libraryMatch = titleMatches[0];
+      }
       if (libraryMatch) {
         toast.custom((t) => (
           <div className="relative flex items-center gap-4 bg-white border border-gray-200 p-4 rounded-xl shadow-xl min-w-[360px] animate-in fade-in slide-in-from-bottom-4">
