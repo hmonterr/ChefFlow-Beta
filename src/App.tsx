@@ -2216,8 +2216,56 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
       <p className="text-xs text-gray-400 mt-1">Click the bookmark icon on any active recipe to save it here.</p>
     </div>
   ) : (
-    <div className="flex flex-col gap-3 mt-2">
-      {libraryRecipes.map((recipe) => (
+    <>
+      {/* Toolbar: search + sort + category chips */}
+      <div className="flex flex-col gap-3 mt-2 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <Input
+            value={librarySearch}
+            onChange={(e) => setLibrarySearch(e.target.value)}
+            placeholder="Search recipes or ingredients..."
+            className="pl-9 h-10 bg-gray-50/50 border-gray-100 focus:bg-white transition-all"
+          />
+        </div>
+
+        <select
+          value={librarySort}
+          onChange={(e) => setLibrarySort(e.target.value)}
+          className="h-10 w-full rounded-md border border-gray-100 bg-gray-50/50 px-3 text-sm font-medium text-gray-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200 transition-all"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="az">Title A–Z</option>
+          <option value="za">Title Z–A</option>
+          <option value="most">Most ingredients</option>
+          <option value="fewest">Fewest ingredients</option>
+        </select>
+
+        {availableCategories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {availableCategories.map((cat) => {
+              const active = libraryCategories.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => toggleLibraryCategory(cat)}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-orange-500 border-orange-500 text-white'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-orange-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {libraryRecipes.map((recipe) => (
         <div key={recipe.id} className="flex flex-col p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-orange-200 transition-colors group">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col min-w-0">
@@ -2265,11 +2313,8 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         </div>
       ))}
- 
-
-            
-           
-    </div>
+      </div>
+    </>
   )}
             </TabsContent>
             
