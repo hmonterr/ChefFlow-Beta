@@ -122,6 +122,9 @@ function AppContent() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [recentlySaved, setRecentlySaved] = useState<Set<string>>(new Set());
   const [libraryRecipes, setLibraryRecipes] = useState<any[]>([]);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [librarySort, setLibrarySort] = useState('newest');
+  const [libraryCategories, setLibraryCategories] = useState<Set<string>>(new Set());
   const [editingLibraryRecipe, setEditingLibraryRecipe] = useState<(Recipe & { ingredients: any[] }) | null>(null);
   const [libraryMenus, setLibraryMenus] = useState<any[]>([]);
   const [managingMenu, setManagingMenu] = useState<any | null>(null);
@@ -310,6 +313,11 @@ function AppContent() {
   useEffect(() => {
     if (!user || user.isAnonymous) {
       setLibraryRecipes([]);
+      // Reset filter UI so a prior session's search/sort/category state
+      // doesn't carry into the next account's library on sign-in.
+      setLibrarySearch('');
+      setLibrarySort('newest');
+      setLibraryCategories(new Set());
       return;
     }
 
@@ -344,6 +352,73 @@ function AppContent() {
 
     return () => unsubscribe();
   }, [user]);
+
+  // Library: distinct ingredient categories across all saved recipes
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    libraryRecipes.forEach((r) => {
+      (r.ingredients || []).forEach((ing: any) => {
+        if (ing?.category) set.add(ing.category);
+      });
+    });
+    return Array.from(set).sort();
+  }, [libraryRecipes]);
+
+  // Library: search (title + ingredient names) -> category filter (OR) -> sort
+  const filteredLibraryRecipes = useMemo(() => {
+    const q = librarySearch.trim().toLowerCase();
+    const result = libraryRecipes.filter((r) => {
+      if (q) {
+        const inTitle = (r.title || '').toLowerCase().includes(q);
+        const inIngredients = (r.ingredients || []).some((ing: any) =>
+          (ing?.name || '').toLowerCase().includes(q)
+        );
+        if (!inTitle && !inIngredients) return false;
+      }
+      if (libraryCategories.size > 0) {
+        const cats = new Set((r.ingredients || []).map((ing: any) => ing?.category));
+        let hit = false;
+        libraryCategories.forEach((c) => { if (cats.has(c)) hit = true; });
+        if (!hit) return false;
+      }
+      return true;
+    });
+
+    const byNewest = (a: any, b: any) =>
+      new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
+    const count = (r: any) => (r.ingredients?.length || 0);
+
+    switch (librarySort) {
+      case 'oldest':
+        return [...result].sort((a, b) => -byNewest(a, b));
+      case 'az':
+        return [...result].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      case 'za':
+        return [...result].sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+      case 'most':
+        return [...result].sort((a, b) => count(b) - count(a));
+      case 'fewest':
+        return [...result].sort((a, b) => count(a) - count(b));
+      case 'newest':
+      default:
+        return [...result].sort(byNewest);
+    }
+  }, [libraryRecipes, librarySearch, librarySort, libraryCategories]);
+
+  const toggleLibraryCategory = (cat: string) => {
+    setLibraryCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const clearLibraryFilters = () => {
+    setLibrarySearch('');
+    setLibrarySort('newest');
+    setLibraryCategories(new Set());
+  };
 
   // Unit System Persistence (Still local for now as it's a preference)
   useEffect(() => {
@@ -1684,7 +1759,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           </div>
         </header>
         
-        <main className={`flex-1 min-h-0 flex flex-col p-4 md:p-8 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
+        <main className={`flex-1 min-h-0 flex flex-col p-4 md:px-8 md:pt-4 md:pb-2 max-w-full transition-all duration-300 ${!isInputHeroExpanded ? 'max-md:pt-20' : ''}`}>        {isLoading && (
           <div className="fixed inset-0 z-[100] bg-white/50 backdrop-blur-sm flex items-center justify-center">
             <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
               <Loader2 className="w-10 h-10 text-orange-500 animate-spin" />
@@ -2113,12 +2188,12 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
       <Sheet open={isLibraryOpen} onOpenChange={setIsLibraryOpen}>
         <SheetContent id="chefflow-root" side="left" className="w-[320px] sm:w-[400px] p-0 border-r-0">
-          <SheetHeader className="p-6 border-b">
-            <SheetTitle className="flex items-center gap-3">
-              <div className="bg-orange-500 p-2 rounded-xl">
-                <BookOpen className="w-5 h-5 text-white" />
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle className="flex items-center gap-1.5 md:gap-2">
+              <div className="bg-orange-500 p-2 rounded-xl shadow-lg shadow-orange-200">
+                <BookOpen className="text-white w-4 h-4 md:w-6 md:h-6" />
               </div>
-              Library
+              <span className="text-base md:text-xl font-bold tracking-tight leading-none">Library</span>
             </SheetTitle>
           </SheetHeader>
           
@@ -2138,7 +2213,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="recipes" className="p-6 m-0 overflow-y-auto h-full pb-32 border-t border-gray-100">
+            <TabsContent value="recipes" className="px-4 pt-4 m-0 overflow-y-auto h-full pb-32">
   {libraryRecipes.length === 0 ? (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 mt-4">
       <BookOpen className="w-10 h-10 text-gray-300 mb-3" />
@@ -2146,8 +2221,73 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
       <p className="text-xs text-gray-400 mt-1">Click the bookmark icon on any active recipe to save it here.</p>
     </div>
   ) : (
-    <div className="flex flex-col gap-3 mt-2">
-      {libraryRecipes.map((recipe) => (
+    <>
+      {/* Toolbar: search + (subtle) sort. Category filter SHELVED 2026-05-30 — see below. */}
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <Input
+            value={librarySearch}
+            onChange={(e) => setLibrarySearch(e.target.value)}
+            placeholder="Search recipes or ingredients..."
+            className="pl-9 h-10 bg-gray-50/50 border-gray-100 focus:bg-white transition-all"
+          />
+        </div>
+
+        <select
+          value={librarySort}
+          onChange={(e) => setLibrarySort(e.target.value)}
+          aria-label="Sort recipes"
+          className="self-end h-7 rounded-md border-0 bg-transparent pr-1 text-xs font-medium text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-0 cursor-pointer transition-colors"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="az">Title A–Z</option>
+          <option value="za">Title Z–A</option>
+          <option value="most">Most ingredients</option>
+          <option value="fewest">Fewest ingredients</option>
+        </select>
+
+        {/* SHELVED 2026-05-30: category filter chips hidden for now; logic (availableCategories /
+            libraryCategories / toggleLibraryCategory) stays wired. Re-enable by deleting `false &&`. */}
+        {false && availableCategories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {availableCategories.map((cat) => {
+              const active = libraryCategories.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => toggleLibraryCategory(cat)}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-orange-500 border-orange-500 text-white'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-orange-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {filteredLibraryRecipes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+          <Search className="w-8 h-8 text-gray-300 mb-3" />
+          <p className="text-sm font-bold text-gray-600">No recipes match</p>
+          <p className="text-xs text-gray-400 mt-1">Try a different search or filter.</p>
+          <Button
+            variant="ghost"
+            onClick={clearLibraryFilters}
+            className="mt-3 h-8 text-xs font-bold text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filteredLibraryRecipes.map((recipe) => (
         <div key={recipe.id} className="flex flex-col p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-orange-200 transition-colors group">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col min-w-0">
@@ -2194,12 +2334,10 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
 
           </div>
         </div>
-      ))}
- 
-
-            
-           
-    </div>
+          ))}
+        </div>
+      )}
+    </>
   )}
             </TabsContent>
             
