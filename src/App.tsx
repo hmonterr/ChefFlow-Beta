@@ -348,6 +348,73 @@ function AppContent() {
     return () => unsubscribe();
   }, [user]);
 
+  // Library: distinct ingredient categories across all saved recipes
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    libraryRecipes.forEach((r) => {
+      (r.ingredients || []).forEach((ing: any) => {
+        if (ing?.category) set.add(ing.category);
+      });
+    });
+    return Array.from(set).sort();
+  }, [libraryRecipes]);
+
+  // Library: search (title + ingredient names) -> category filter (OR) -> sort
+  const filteredLibraryRecipes = useMemo(() => {
+    const q = librarySearch.trim().toLowerCase();
+    const result = libraryRecipes.filter((r) => {
+      if (q) {
+        const inTitle = (r.title || '').toLowerCase().includes(q);
+        const inIngredients = (r.ingredients || []).some((ing: any) =>
+          (ing?.name || '').toLowerCase().includes(q)
+        );
+        if (!inTitle && !inIngredients) return false;
+      }
+      if (libraryCategories.size > 0) {
+        const cats = new Set((r.ingredients || []).map((ing: any) => ing?.category));
+        let hit = false;
+        libraryCategories.forEach((c) => { if (cats.has(c)) hit = true; });
+        if (!hit) return false;
+      }
+      return true;
+    });
+
+    const byNewest = (a: any, b: any) =>
+      new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
+    const count = (r: any) => (r.ingredients?.length || 0);
+
+    switch (librarySort) {
+      case 'oldest':
+        return [...result].sort((a, b) => -byNewest(a, b));
+      case 'az':
+        return [...result].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      case 'za':
+        return [...result].sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+      case 'most':
+        return [...result].sort((a, b) => count(b) - count(a));
+      case 'fewest':
+        return [...result].sort((a, b) => count(a) - count(b));
+      case 'newest':
+      default:
+        return [...result].sort(byNewest);
+    }
+  }, [libraryRecipes, librarySearch, librarySort, libraryCategories]);
+
+  const toggleLibraryCategory = (cat: string) => {
+    setLibraryCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const clearLibraryFilters = () => {
+    setLibrarySearch('');
+    setLibrarySort('newest');
+    setLibraryCategories(new Set());
+  };
+
   // Unit System Persistence (Still local for now as it's a preference)
   useEffect(() => {
     const savedUnits = localStorage.getItem('chefflow_units');
