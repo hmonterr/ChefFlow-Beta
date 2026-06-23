@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Chef Maria's Private Kitchen",
+    "business": "Chef Maria's Private Kitchen",
+    "website": "https://chefmaria.com",
+    "email": null,
+    "instagram": null,
+    "city": "San Diego, CA",
+    "geoRing": "San Diego",
+    "source": "GooglePlaces",
+    "status": "Sourced",
+    "channel": null
+  },
+  {
+    "name": "Artisan Table Personal Chef",
+    "business": "Artisan Table Personal Chef",
+    "website": "https://artisantable.com",
+    "email": null,
+    "instagram": null,
+    "city": "La Jolla, CA",
+    "geoRing": "San Diego",
+    "source": "GooglePlaces",
+    "status": "Sourced",
+    "channel": null
+  }
+]
