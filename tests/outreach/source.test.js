@@ -26,7 +26,7 @@ jest.mock('../../lib/outreach/emailExtractor');
 const { getAllLeads, createLead }           = require('../../lib/outreach/notionClient');
 const { searchPersonalChefs, SEARCH_SEEDS } = require('../../lib/outreach/placesAdapter');
 const { extractEmail }                      = require('../../lib/outreach/emailExtractor');
-const handler                               = require('../../api/outreach/source');
+const handler                               = require('../../api/outreach/source').default;
 const placesFixture                         = require('./fixtures/placesResult.json');
 
 // Minimal res mock

@@ -16,7 +16,7 @@ jest.mock('../../lib/outreach/geminiDrafter');
 
 const { getLead, updateLead } = require('../../lib/outreach/notionClient');
 const { draftOutreach }       = require('../../lib/outreach/geminiDrafter');
-const handler                 = require('../../api/outreach/draft');
+const handler                 = require('../../api/outreach/draft').default;
 const fixtures                = require('./fixtures/leadRecord.json');
 
 function mockRes() {

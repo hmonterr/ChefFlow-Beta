@@ -16,7 +16,7 @@ jest.mock('../../lib/outreach/gmailClient');
 
 const { getLead, updateLead } = require('../../lib/outreach/notionClient');
 const { createGmailDraft }    = require('../../lib/outreach/gmailClient');
-const handler                 = require('../../api/outreach/send');
+const handler                 = require('../../api/outreach/send').default;
 const fixtures                = require('./fixtures/leadRecord.json');
 
 function mockRes() {
