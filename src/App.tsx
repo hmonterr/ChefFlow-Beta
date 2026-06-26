@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Analytics } from '@vercel/analytics/react';
 import { 
   Plus, 
   FileUp, 
@@ -3135,6 +3136,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
       </Dialog>
 
     </div>
+    <Analytics />
     </TooltipProvider>
   );
 }
