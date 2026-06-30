@@ -1,37 +1,82 @@
-Run a fresh search for independent personal/private chefs to invite to ChefFlow Beta, then save the results to Notion Scratchpad.
+Run a fresh search for chefs to invite to ChefFlow Beta, then save new leads to Notion and the repo.
 
-## Steps
+## Step 1 — Ask which tier to search
 
-1. Run these web searches **in parallel**:
-   - `independent personal chef Instagram contact email meal prep USA 2026`
-   - `private chef small business "book me" OR "hire me" city contact website 2026`
-   - `personal chef "about me" specialty cuisine contact independent chef USA 2026`
-   - `private chef influencers Instagram DM to book catering 2026`
-   - `personal chef podcast blog contact email recipe development 2026`
+Before doing anything else, ask the user:
 
-2. For any promising names surfaced, run follow-up searches to get:
-   - Full name
-   - Location / city
-   - Email address (preferred) or phone
-   - Instagram handle
-   - Website
-   - Specialty / cuisine type
-   - Follower count if applicable
+> Which tier would you like to search for new leads?
+> **1** — Independent / personal chefs (direct email, phone, or IG DM)
+> **2** — Mid-size creator chefs (10K–5M followers)
+> **3** — Community / platform plays (podcasts, chef networks, marketplaces)
 
-3. Compile into three tiers:
-   - **Tier 1 (target: 30+ leads)** — Independent/personal chefs with direct contact info (email, phone, or IG DM). These are the first outreach priority.
-   - **Tier 2** — Mid-size creator chefs (10K–5M followers) reachable via inquiry email or DM.
-   - **Tier 3** — Community/platform plays (podcasts, chef networks, marketplaces) — pitch last, after messaging is validated.
+Wait for their answer (1, 2, or 3) before proceeding.
 
-4. Save to Notion Scratchpad DB (`collection://c98a70e0-6d64-411a-97db-1ff6d3c598a4`) using `mcp__Notion__notion-create-pages` with:
-   - Property `Thought`: `Chef Outreach Leads — [Month Year]`
-   - Content: the full compiled list in Notion Markdown, including tiers, contact info, and outreach priority order
+## Step 2 — Load already-saved leads to avoid duplicates
 
-5. Also overwrite `chef-outreach-leads.md` in the repo root with the updated list.
+Read **both** of these sources and extract every name, Instagram handle, email, and website already recorded:
 
-6. Commit and push to the current branch with message: `Refresh chef outreach leads — [Month Year]`
+- `chef-outreach-leads.md` (repo root) — the current master list
+- `chef-outreach-contacted.md` (repo root) — chefs already contacted (may not exist yet; skip if missing)
 
-## Output format for each lead (Tier 1)
+Build an exclusion set from all names/handles/emails found. Any lead that matches something in this set must be skipped.
+
+## Step 3 — Run tier-specific searches in parallel
+
+### If Tier 1 selected:
+- `independent personal chef Instagram contact email meal prep USA 2026`
+- `private chef small business "book me" OR "hire me" city contact website 2026`
+- `personal chef "about me" specialty cuisine contact independent chef USA 2026`
+- `private chef influencers "DM to book" catering Instagram USA 2026`
+- `personal chef blog contact email recipe development independent 2026`
+
+### If Tier 2 selected:
+- `chef content creator Instagram 10000 to 500000 followers recipe cooking 2026`
+- `culinary influencer mid-size food creator chef contact email Instagram 2026`
+- `chef YouTuber recipe creator contact business inquiry email 2026`
+- `private chef social media creator growing audience contact 2026`
+
+### If Tier 3 selected:
+- `personal chef podcast community network contact sponsorship 2026`
+- `chef marketplace directory partnership contact 2026`
+- `culinary professional association chef network membership 2026`
+- `private chef Facebook group community organizer contact 2026`
+
+## Step 4 — Follow-up searches for promising names
+
+For each new name surfaced, run follow-up searches to find:
+- Full name
+- Location / city
+- Email address (preferred) or phone
+- Instagram handle
+- Website
+- Specialty / cuisine type
+- Follower count (if applicable)
+
+**Skip any lead already in the exclusion set from Step 2.**
+
+## Step 5 — Save new leads only
+
+### Append to `chef-outreach-leads.md`
+
+Add only the newly found leads into the correct tier section in `chef-outreach-leads.md`. Do not remove or rewrite existing entries. Increment numbering from where the tier left off.
+
+### Save to Notion Scratchpad DB
+
+Use `mcp__Notion__notion-create-pages` with parent `collection://c98a70e0-6d64-411a-97db-1ff6d3c598a4`:
+- Property `Thought`: `Chef Outreach Search — Tier [N] — [Month Year]`
+- Content: only the newly found leads in this run, formatted with full contact details
+
+## Step 6 — Commit and push
+
+```
+git add chef-outreach-leads.md
+git commit -m "Add Tier [N] chef outreach leads — [Month Year]"
+git push -u origin <current-branch>
+```
+
+---
+
+## Output format per new lead
 
 ```
 **[#]. [Name / Handle]** — [City, State]
@@ -43,6 +88,24 @@ Run a fresh search for independent personal/private chefs to invite to ChefFlow 
 - Notes: ...
 ```
 
-## Outreach template to include at bottom
+---
+
+## Tracking contacted chefs
+
+If `chef-outreach-contacted.md` does not exist yet, create it with this header when first needed:
+
+```markdown
+# ChefFlow Outreach — Contacted Chefs
+
+Add a chef here once outreach has been sent. Chefs in this file are
+skipped on all future /chef-outreach-search runs.
+
+| Date | Name / Handle | Tier | Method | Status |
+|------|---------------|------|--------|--------|
+```
+
+---
+
+## Outreach template (include at bottom of Notion entry)
 
 > Hi [Name], I'm [your name] from **ChefFlow** — an AI-powered recipe and client management tool built for independent chefs. We're in beta and looking for working chefs to try it out and share feedback. It's completely free during beta. Would you be open to a quick look? [link]
