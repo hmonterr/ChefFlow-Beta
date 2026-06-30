@@ -114,11 +114,26 @@ Goal: invite independent/private/personal chefs to try ChefFlow Beta.
 
 ## Suggested Outreach Order
 
-1. **Chris Spear** — email + podcast partnership pitch (highest leverage)
-2. **Food Fire + Knives** — platform partnership proposal
-3. **Chefs Without Restaurants Facebook group** — community post (broadest free reach)
-4. **Tier 3 personal chefs** — Instagram DM + email/phone
-5. **Tier 2 creators** — DM / inquiry email
+### Start here — Tier 3: Independent / Personal Chefs
+1. **Chef Abyssinia** — @chefabyssinia IG DM (NYC/NJ)
+2. **Essential Eats Experience** — @essentialeats.experience IG DM (Houston, TX)
+3. **DineIndulge** — @dineindulge IG DM (UK)
+4. **Mike Nodine (Time Savor Chef)** — call/text 908-358-4298 (Linden, NJ)
+5. **Atlanta Personal Chef Service** — email info@atlchefs.com (Atlanta, GA)
+6. **Personal Chef Piper** — call (917) 602-9480 (Asheville, NC)
+7. **Verde Chef Service** — contact via website (Bryn Mawr, PA)
+8. **Chef Trish** — contact via cheftrish.com (Rhode Island)
+
+### Then — Tier 2: Mid-Size Creator Chefs
+9. **J. Kenji López-Alt** — email inquiry@kenjilopezalt.com
+10. **Nick DiGiovanni** — IG DM @nick.digiovanni or LinkedIn
+11. **Andy Hearnden (Andy Cooks)** — contact via andy-cooks.com
+12. **Amaury Guichon** — IG DM @amauryguichon
+
+### Finally — Tier 1: Community / Platform Plays
+13. **Chris Spear** — email chefswithoutrestaurants@gmail.com (podcast + community)
+14. **Chefs Without Restaurants community** — email chefstartup@gmail.com (Facebook group post)
+15. **Food Fire + Knives** — call (843) 310-4990 (platform partnership)
 
 ---
 
