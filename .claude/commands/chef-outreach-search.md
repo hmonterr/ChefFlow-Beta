@@ -60,11 +60,24 @@ For each new name surfaced, run follow-up searches to find:
 
 Add only the newly found leads into the correct tier section in `chef-outreach-leads.md`. Do not remove or rewrite existing entries. Increment numbering from where the tier left off.
 
-### Save to Notion Scratchpad DB
+### Save to Notion Chef Leads DB
 
-Use `mcp__Notion__notion-create-pages` with parent `collection://c98a70e0-6d64-411a-97db-1ff6d3c598a4`:
-- Property `Thought`: `Chef Outreach Search — Tier [N] — [Month Year]`
-- Content: only the newly found leads in this run, formatted with full contact details
+Use `mcp__Notion__notion-create-pages` with parent `collection://513637ba-79ef-4929-9ea9-ca93f1c87aa6` (the **Chef Leads** DB at https://app.notion.com/p/dd28d06ab2c84962838ca82707b1f10b).
+
+Create **one page per chef** (one row per lead) using the DB schema:
+- `Name` (title) — chef or business name
+- `Business` (text) — business name if different from Name
+- `Channel` (select) — `"Email"` or `"Instagram"` based on primary contact method
+- `City/Region` (text) — location
+- `Email` (email) — email address if available
+- `Phone` (phone_number) — phone if available
+- `Instagram` (text) — handle including @
+- `Website` (url) — full https:// URL
+- `Geo ring` (select) — one of: `"San Diego"`, `"North County"`, `"SoCal"`, `"CA"`, `"National"`
+- `Status` (select) — always `"Sourced"` for new leads
+- `Source` (select) — `"Google"` for web search results, `"HireAChef"` / `"USPCA"` etc. if from those directories
+- `Would pay?` (select) — always `"Unknown"` for new leads
+- `Notes` (text) — specialty, follower count, tier number, any other context
 
 ## Step 6 — Commit and push
 
