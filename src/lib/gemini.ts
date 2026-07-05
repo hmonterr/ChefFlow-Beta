@@ -3,6 +3,24 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
+// Map a raw Gemini/SDK error to a specific, human-readable message. The UI shows
+// this string verbatim in its "Extraction Failed" toast, so it must be readable
+// AND distinct per cause: collapsing everything into one "AI service error" hid a
+// 403 billing hold ("Lightning dunning ... PERMISSION_DENIED") for an entire
+// debugging session. EMPTY_DATA is handled/re-thrown by callers, so it passes through.
+export function geminiErrorMessage(error: any): string {
+  if (error?.message === "EMPTY_DATA") return "EMPTY_DATA";
+  const status = Number(error?.status);
+  const msg = String(error?.message || "").toLowerCase();
+  if (status === 401 || status === 403 || /permission_denied|api key|unauthenticated/.test(msg))
+    return "AI access denied — check the Gemini API key and Google Cloud billing.";
+  if (status === 429 || /quota|rate limit|resource_exhausted/.test(msg))
+    return "AI is rate-limited or over quota — wait a moment and retry.";
+  if (/fetch|network/.test(msg)) return "Network error reaching the AI service.";
+  if (/timeout|deadline/.test(msg)) return "AI request timed out — try again.";
+  return "AI service error — check the console for details.";
+}
+
 export async function extractRecipeData(input: string | { data: string; mimeType: string }, isUrl: boolean = false) {
   const isVisual = typeof input === 'object';
   // SURGICAL FIX: Use the actual, live production endpoint
@@ -111,9 +129,7 @@ export async function extractRecipeData(input: string | { data: string; mimeType
   } catch (error: any) {
     console.error("Gemini Extraction Error:", error);
     if (error.message === "EMPTY_DATA") throw error;
-    if (error.message?.includes("fetch") || error.message?.includes("network")) throw new Error("NETWORK_ERROR");
-    if (error.message?.includes("timeout") || error.message?.includes("deadline")) throw new Error("TIMEOUT_ERROR");
-    throw new Error("AI_SERVICE_ERROR");
+    throw new Error(geminiErrorMessage(error));
   }
 }
 
@@ -180,7 +196,7 @@ export async function parseSingleIngredient(input: string) {
   } catch (error: any) {
     console.error("Gemini Single Parse Error:", error);
     if (error.message === "EMPTY_DATA") throw error;
-    throw new Error("AI_SERVICE_ERROR");
+    throw new Error(geminiErrorMessage(error));
   }
 }
 
