@@ -568,9 +568,14 @@ function AppContent() {
           lineage = [{ type: 'recipe', label: `${recipe.title} (${multiplier}x)` }];
         }
 
+        // Scale by THIS recipe's own multiplier before consolidation. Doing it
+        // here (not post-consolidate) is load-bearing: consolidateIngredients
+        // sums quantities across recipes and keeps only the first-seen recipeId,
+        // so a single post-hoc multiplier would scale every sibling recipe's
+        // contribution by the wrong factor and undershoot the total.
         return {
           ...item,
-          quantity: item.quantity,
+          quantity: (Number(item.quantity) || 0) * multiplier,
           lineage
         };
       });
@@ -583,8 +588,9 @@ function AppContent() {
     
     // 4. Quantize (Apply MPU round-up)
     const quantized = consolidated.map(item => {
-      const multiplier = item.isManual ? 1 : (activeRecipeMap.get(item.recipeId) || 1);
-      const result = quantize(item.name, item.quantity, item.unit, unitSystem, multiplier);
+      // Multiplier is already baked into item.quantity (scaledIngredients above),
+      // so quantize with scale=1 — applying it again here would double-scale.
+      const result = quantize(item.name, item.quantity, item.unit, unitSystem);
       
       // 🛡️ THE GLOBAL RENDER FAILSAFE 🛡️
       // This catches EVERY ingredient (Dairy, Bakery, Protein, etc.) and forces 
