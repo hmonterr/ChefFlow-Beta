@@ -150,7 +150,10 @@ export function cleanIngredientName(name: string): string {
   
   // Clean up extra spaces
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  
+
+  // Drop empty comma-segments left behind by descriptor removal ("onion, finely diced" -> "onion,")
+  cleaned = cleaned.split(',').map(s => s.trim()).filter(Boolean).join(', ');
+
   // Capitalize first letter
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
@@ -846,19 +849,21 @@ export function quantize(name: string, quantity: number | string, unit: string, 
   };
 }
 
+// Temperature/prep words that, paired with "water", still mean plain tap water
+// you don't shop for. Anything else containing "water" is a real purchased item.
+const WATER_MODIFIERS = new Set([
+  'tap', 'warm', 'warmed', 'hot', 'cold', 'cool', 'cooled', 'ice', 'iced',
+  'boiling', 'boiled', 'filtered', 'lukewarm', 'plain', 'room', 'temperature',
+]);
+
 export function shouldOmit(name: string): boolean {
-  const normalizedName = name.toLowerCase();
-  // The "Water" Rule
-  if (normalizedName === 'water') {
-    return true;
-  }
-  // Keep if specific water
-  if (normalizedName.includes('water') && (normalizedName.includes('sparkling') || normalizedName.includes('distilled') || normalizedName.includes('mineral'))) {
-    return false;
-  }
-  if (normalizedName.includes('water')) return true;
-  
-  return false;
+  // Only omit plain water. "water" must be a STANDALONE word AND every other word
+  // a temperature/prep modifier — a bare includes('water') wrongly dropped
+  // watermelon, watercress, water chestnut, coconut water, rose water, and the
+  // kept varieties (sparkling/distilled/mineral water).
+  const words = name.toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  if (!words.includes('water')) return false;
+  return words.every(w => w === 'water' || WATER_MODIFIERS.has(w));
 }
 
 // ==========================================
