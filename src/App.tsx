@@ -2351,7 +2351,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
             </SheetTitle>
           </SheetHeader>
           
-          <Tabs defaultValue="recipes" className="w-full">
+          <Tabs defaultValue="recipes" className="w-full flex-1 flex flex-col min-h-0">
             <TabsList className="hidden w-full justify-start rounded-none bg-transparent border-b h-12 px-6">
               <TabsTrigger 
                 value="recipes" 
@@ -2367,7 +2367,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="recipes" className="px-4 pt-4 m-0 overflow-y-auto h-full pb-32">
+            <TabsContent value="recipes" className="px-4 pt-4 m-0 overflow-y-auto flex-1 min-h-0 pb-32">
   {libraryRecipes.length === 0 ? (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 mt-4">
       <BookOpen className="w-10 h-10 text-gray-300 mb-3" />
@@ -2495,7 +2495,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
   )}
             </TabsContent>
             
-            <TabsContent value="menus" className="p-6 m-0 overflow-y-auto h-full pb-32">
+            <TabsContent value="menus" className="p-6 m-0 overflow-y-auto flex-1 min-h-0 pb-32">
               {/* Target: App.tsx - Inside <TabsContent value="menus"> */}
               <div className="mb-6 space-y-3">
                 <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest pl-1">Create New Menu</label>
