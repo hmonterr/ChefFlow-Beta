@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test:outreach": "jest --config jest.config.cjs tests/outreach"
+    "test:outreach": "jest --config jest.config.cjs tests/outreach",
+    "test:quantizer": "tsx tests/quantizer/butter-mpu.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

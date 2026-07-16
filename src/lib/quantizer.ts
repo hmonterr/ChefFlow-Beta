@@ -41,16 +41,24 @@ const DAIRY_WEIGHT_SHIELD = ['cheese', 'gorgonzola', 'parmesan', 'feta', 'chedda
 // Butter is sold by weight, but recipes routinely call it out by VOLUME
 // (sticks / cups / tablespoons). Without conversion the weight path reads the raw
 // volume number as pounds — "16 tbsp" became "16 lb" → 256 oz, and tbsp+g sums
-// exploded to thousands of oz. Standard butter density (1 cup = 227 g = 2 sticks):
-//   1 stick = 113.5 g · 1 cup = 227 g · 1 tbsp = 14.2 g · 1 tsp = 4.73 g
+// exploded to thousands of oz.
+//
+// US butter volume is DEFINED in weight, exactly: 1 cup = 8 oz, 1 stick = 4 oz,
+// 1 tbsp = 1/2 oz, 1 tsp = 1/6 oz. Keep the table in ounces and convert once, so
+// 2 cups / 4 sticks / 32 tbsp land on precisely one 1 lb box. Rounded gram
+// constants (227 g/cup, 113.5 g/stick) put 2 cups 0.4 g OVER a pound, and the
+// Math.ceil() below billed that sliver as a whole second box — so every
+// whole-pound order overbought, worsening with scale (B-001 "Butter Math").
 // Checked longest-first so "tablespoon" wins before "tbl"/"tbsp" substrings.
-const BUTTER_VOLUME_G: Array<[string, number]> = [
-  ['tablespoon', 14.2], ['teaspoon', 4.73], ['stick', 113.5],
-  ['cup', 227], ['tbsp', 14.2], ['tbl', 14.2], ['tsp', 4.73],
+const G_PER_OZ = 28.349523125;
+const G_PER_LB = 453.59237;
+const BUTTER_VOLUME_OZ: Array<[string, number]> = [
+  ['tablespoon', 0.5], ['teaspoon', 1 / 6], ['stick', 4],
+  ['cup', 8], ['tbsp', 0.5], ['tbl', 0.5], ['tsp', 1 / 6],
 ];
 function butterVolumeToGrams(qty: number, unit: string): number | null {
   const u = unit.toLowerCase().trim();
-  for (const [k, g] of BUTTER_VOLUME_G) if (u === k || u.includes(k)) return qty * g;
+  for (const [k, oz] of BUTTER_VOLUME_OZ) if (u === k || u.includes(k)) return qty * oz * G_PER_OZ;
   return null; // not a recognized butter volume unit (weight units handled elsewhere)
 }
 
@@ -764,17 +772,18 @@ export function quantize(name: string, quantity: number | string, unit: string, 
       // --- BUTTER RETAIL MPU (IMPERIAL) ---
       // Butter is sold in 1 lb boxes (4 sticks), not loose ounces — "6 oz" isn't a
       // buyable unit. Round UP to whole pounds, minimum one box. Volume units were
-      // already normalized to grams upstream; the epsilon keeps an exact 1 lb / 16 oz
-      // from tipping into 2 boxes via float drift.
+      // already normalized to grams upstream. Exact G_PER_* constants keep a whole
+      // 1 lb / 16 oz / 2 cups landing ON the boundary; the epsilon then only has to
+      // absorb float drift, which is all it was ever sized for (B-001).
       if (searchKey.includes('butter')) {
         const grams =
-          (normalizedUnit.includes('oz') || normalizedUnit.includes('ounce')) ? totalQuantity * 28.3495 :
+          (normalizedUnit.includes('oz') || normalizedUnit.includes('ounce')) ? totalQuantity * G_PER_OZ :
           normalizedUnit.includes('kg') ? totalQuantity * 1000 :
-          (normalizedUnit.includes('lb') || normalizedUnit.includes('pound')) ? totalQuantity * 453.592 :
+          (normalizedUnit.includes('lb') || normalizedUnit.includes('pound')) ? totalQuantity * G_PER_LB :
           totalQuantity; // grams
-        const lb = Math.max(1, Math.ceil(grams / 453.592 - 1e-6));
+        const lb = Math.max(1, Math.ceil(grams / G_PER_LB - 1e-6));
         return {
-          quantity: grams / 453.592, unit: 'lb', mpuQuantity: lb, mpuUnit: 'lb',
+          quantity: grams / G_PER_LB, unit: 'lb', mpuQuantity: lb, mpuUnit: 'lb',
           name: cleanedName,
           displayString: `${lb} lb`,
         };
@@ -982,8 +991,8 @@ export function consolidateIngredients(ingredients: Ingredient[], system: UnitSy
          const v = butterVolumeToGrams(qty, u);
          if (v !== null) return v;
          if (u.includes('kg')) return qty * 1000;
-         if (u.includes('lb') || u.includes('pound')) return qty * 453.59;
-         if (u.includes('oz') || u.includes('ounce')) return qty * 28.35;
+         if (u.includes('lb') || u.includes('pound')) return qty * G_PER_LB;
+         if (u.includes('oz') || u.includes('ounce')) return qty * G_PER_OZ;
          return qty; // grams
       };
       if (isButter) {
