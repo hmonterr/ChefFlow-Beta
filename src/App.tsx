@@ -1556,7 +1556,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
   const exportPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(20);
-    doc.text('ChefFlow Shopping List', 20, 20);
+    doc.text('Grouper Shopping List', 20, 20);
     doc.setFontSize(12);
     
     let y = 30;
@@ -1602,7 +1602,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 <ChefHat className="text-white w-4 h-4 md:w-6 md:h-6" />
               </div>
               <div className="flex flex-col">
-                <h1 className="text-base md:text-xl font-bold tracking-tight leading-none">ChefFlow</h1>
+                <h1 className="text-base md:text-xl font-bold tracking-tight leading-none">Grouper</h1>
                 <span className="text-[7px] md:text-[10px] font-bold text-orange-600 uppercase tracking-wider md:tracking-widest mt-0.5">Beta Version</span>
               </div>
             </div>
@@ -2106,7 +2106,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
           <div className="max-w-7xl mx-auto w-full mb-4 px-2">
             <div className="max-w-2xl">
               <p className="text-sm text-gray-700 font-medium">Paste a recipe URL or ingredient above.</p>
-              <p className="text-xs text-gray-500 mt-1">ChefFlow handles scaling, duplicate merging, and rounds to real shopping units.</p>
+              <p className="text-xs text-gray-500 mt-1">Grouper handles scaling, duplicate merging, and rounds to real shopping units.</p>
             </div>
           </div>
         )}
@@ -2333,7 +2333,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
                 AI-parsed recipes from third-party sources. Always verify ingredients, quantities, and allergens.
               </p>
               <p>
-                ChefFlow is not affiliated with recipe authors and makes no warranty of accuracy. Not a substitute for professional dietary or medical advice.
+                Grouper is not affiliated with recipe authors and makes no warranty of accuracy. Not a substitute for professional dietary or medical advice.
               </p>
             </div>
           )}
