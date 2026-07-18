@@ -10,9 +10,9 @@ The canonical design language for all ChefFlow surfaces — the main app (this r
 
 ## 1. Brand
 
-**Identity.** A warm, calm, kitchen-notebook feel — not a tech dashboard. Cream backgrounds with desaturated pastel accents do the work; the single peach accent (`#E89765`, the chef-hat color) is the only saturated color in the system.
+**Identity.** A warm, calm, kitchen-notebook feel — not a tech dashboard. Cream backgrounds with desaturated accents do the work; coral (`#E65A32`) is the primary brand color and teal (`#16917A`) the secondary, used sparingly against the neutral field.
 
-**Mark.** A line-drawn chef hat (24×24 SVG, stroke `#E89765`, `strokeWidth=1.8`, rounded caps). Used as favicon and in-app `<ChefHat>` component.
+**Mark.** A line-drawn chef hat (24×24 SVG, stroke `#E65A32`, `strokeWidth=1.8`, rounded caps). Used as favicon and in-app `<ChefHat>` component.
 
 **Voice in UI copy.** Short, direct, lowercase chips for status. Title-case for section headers. No exclamation marks. No tooltips that explain the obvious.
 
@@ -50,13 +50,15 @@ The canonical design language for all ChefFlow surfaces — the main app (this r
 
 | Token | Value |
 |---|---|
-| `accent` | `#E89765` |
-| `accentDim` *(light)* | `rgba(232,151,101,0.12)` |
-| `accentDim` *(dark)* | `rgba(232,151,101,0.18)` |
-| `accentBorder` *(light)* | `rgba(232,151,101,0.24)` |
-| `accentBorder` *(dark)* | `rgba(232,151,101,0.30)` |
+| `accent` | `#E65A32` |
+| `accentDim` *(light)* | `rgba(230,90,50,0.12)` |
+| `accentDim` *(dark)* | `rgba(230,90,50,0.18)` |
+| `accentBorder` *(light)* | `rgba(230,90,50,0.24)` |
+| `accentBorder` *(dark)* | `rgba(230,90,50,0.30)` |
+| `secondary` *(teal)* | `#16917A` |
+| `secondaryDeep` *(teal)* | `#2E6E6A` |
 
-The accent is the only saturated color in the system. Use it sparingly — on the brand mark, on one or two primary actions per view, and as `accentDim` background for "Claude-owned" tags.
+Coral is the primary accent and teal the secondary. Use them sparingly — on the brand mark, on one or two primary actions per view, and as `accentDim` background for "Claude-owned" tags.
 
 ### 2.4 Bug priority (mode-aware)
 
@@ -231,9 +233,11 @@ The main app uses Tailwind v4 via `@tailwindcss/vite`. Add this `@theme` block t
 
 @theme {
   /* Brand */
-  --color-accent: #E89765;
-  --color-accent-dim: rgb(232 151 101 / 0.12);
-  --color-accent-border: rgb(232 151 101 / 0.24);
+  --color-accent: #E65A32;
+  --color-accent-dim: rgb(230 90 50 / 0.12);
+  --color-accent-border: rgb(230 90 50 / 0.24);
+  --color-secondary: #16917A;
+  --color-secondary-deep: #2E6E6A;
 
   /* Light theme — defaults */
   --color-bg: #FAF6EF;
@@ -286,8 +290,8 @@ The main app uses Tailwind v4 via `@tailwindcss/vite`. Add this `@theme` block t
     --color-muted: rgb(236 227 210 / 0.52);
     --color-dim: rgb(236 227 210 / 0.30);
 
-    --color-accent-dim: rgb(232 151 101 / 0.18);
-    --color-accent-border: rgb(232 151 101 / 0.30);
+    --color-accent-dim: rgb(230 90 50 / 0.18);
+    --color-accent-border: rgb(230 90 50 / 0.30);
 
     --color-priority-critical: #D88087;
     --color-priority-high: #E29CA2;
@@ -321,7 +325,7 @@ The dashboard at `ChefFlow Dash/index.html` already implements every token via t
   --cf-bg: #FAF6EF;
   --cf-surface: #FFFDF9;
   --cf-surface-2: #F1ECE2;
-  --cf-accent: #E89765;
+  --cf-accent: #E65A32;
   --cf-text: #000;
   --cf-muted: rgba(0,0,0,0.55);
   --cf-border: rgba(60,45,30,0.09);
@@ -337,7 +341,7 @@ The dashboard at `ChefFlow Dash/index.html` already implements every token via t
 
 Avoid these — they break the aesthetic:
 
-- **Saturated colors** other than the peach accent. No bright reds, hot pinks, electric blues. If a status needs to read "urgent," use `priority-critical` (a muted brick), not vermilion.
+- **Saturated colors** other than the coral/teal brand pair. No bright reds, hot pinks, electric blues. If a status needs to read "urgent," use `priority-critical` (a muted brick), not vermilion.
 - **Drop shadows or elevation layers.** This system uses borders and `surface2` recessed backgrounds instead.
 - **Multiple typefaces.** Inter only. Resist the urge to add a "real" mono.
 - **Pill-shaped buttons** (`border-radius: 9999px`). Cap at 16px.
