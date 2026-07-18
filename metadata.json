@@ -1,5 +1,5 @@
 {
-  "name": "Remix: ChefFlow User Authentication",
+  "name": "Grouper",
   "description": "Kanban Shopping List with Gemini-powered recipe extraction and MPU quantization.",
   "requestFramePermissions": [
     "camera"
