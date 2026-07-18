@@ -6,14 +6,21 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --color-orange-50:  #FDF4EE;
-    --color-orange-100: #FAE4D5;
-    --color-orange-200: #F5C9AC;
-    --color-orange-300: #F0B795;
-    --color-orange-400: #EDA886;
-    --color-orange-500: #E89765;
-    --color-orange-600: #D7855A;
-    --color-orange-700: #B96E47;
+    /* Grouper coral ramp (brand primary #E65A32). Key names kept as orange-* so
+       existing `orange-*` utility classes pick up coral with zero component edits.
+       ponytail: rename keys to coral-* later only if the semantic mismatch bites. */
+    --color-orange-50:  #FDF0EB;
+    --color-orange-100: #FADACE;
+    --color-orange-200: #F5B49E;
+    --color-orange-300: #F08E6E;
+    --color-orange-400: #EC7350;
+    --color-orange-500: #E65A32;
+    --color-orange-600: #C94E2B;
+    --color-orange-700: #A63F22;
+
+    /* Grouper teal (brand secondary) */
+    --color-teal-500: #16917A;
+    --color-teal-700: #2E6E6A;
 }
 
 @theme inline {
