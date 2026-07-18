@@ -28,6 +28,7 @@ import {
   Search,
   Bookmark
 } from 'lucide-react';
+import { GrouperMark } from '@/components/GrouperMark';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1598,9 +1599,7 @@ const saveToLibrary = async (recipeId: string, e?: React.MouseEvent) => {
         >
           <div className={`max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-6 w-full ${isInputHeroExpanded ? 'max-md:px-6' : ''}`}>
             <div className={`flex items-center gap-1.5 md:gap-2 mr-auto shrink-0 ${isInputHeroExpanded ? 'max-md:absolute max-md:top-8 max-md:left-8' : ''}`}>
-              <div className="bg-orange-500 p-2 rounded-xl shadow-lg shadow-orange-200">
-                <ChefHat className="text-white w-4 h-4 md:w-6 md:h-6" />
-              </div>
+              <GrouperMark className="w-8 h-8 md:w-10 md:h-10" />
               <div className="flex flex-col">
                 <h1 className="text-base md:text-xl font-bold tracking-tight leading-none">Grouper</h1>
                 <span className="text-[7px] md:text-[10px] font-bold text-orange-600 uppercase tracking-wider md:tracking-widest mt-0.5">Beta Version</span>
