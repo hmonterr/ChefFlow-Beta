@@ -1,7 +1,28 @@
 // lib/gemini.ts
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// The Gemini API key must NEVER reach the browser. Inlining it here (via Vite
+// `define`) leaked it into the public bundle and got the GCP project hijacked +
+// suspended. All generation now goes through the server-side proxy /api/gemini,
+// which injects the key and forces the model. VITE_API_BASE lets the SPA point at
+// the functions host when it isn't served from the same origin (e.g. Wix iframe).
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || '';
+
+async function callGemini(payload: { contents: any; config?: any }): Promise<{ text: string }> {
+  const res = await fetch(`${API_BASE}/api/gemini`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    // Preserve upstream status so geminiErrorMessage() still classifies 429/403/etc.
+    const err: any = new Error(data?.error || `Gemini proxy error ${res.status}`);
+    err.status = data?.status ?? res.status;
+    throw err;
+  }
+  return { text: data.text ?? '' };
+}
 
 // Map a raw Gemini/SDK error to a specific, human-readable message. The UI shows
 // this string verbatim in its "Extraction Failed" toast, so it must be readable
@@ -23,10 +44,8 @@ export function geminiErrorMessage(error: any): string {
 
 export async function extractRecipeData(input: string | { data: string; mimeType: string }, isUrl: boolean = false) {
   const isVisual = typeof input === 'object';
-  // SURGICAL FIX: Use the actual, live production endpoint
-  const currentModel = "gemini-2.5-flash";
-  
-  const prompt = `Extract ingredients and a title from this recipe. 
+
+  const prompt = `Extract ingredients and a title from this recipe.
   ${isVisual ? "IMAGE INSTRUCTION: This is a photo of a recipe. Perform high-precision OCR. If handwriting is ambiguous, use culinary context to infer the most logical ingredient." : ""}
   
   For each ingredient, provide:
@@ -83,9 +102,7 @@ export async function extractRecipeData(input: string | { data: string; mimeType
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: currentModel,
-      // CRITICAL FIX: Wrap contents in an array with an explicit role
+    const response = await callGemini({
       contents: [{ role: 'user', parts: requestParts }],
       config: {
         responseMimeType: "application/json",
@@ -134,9 +151,6 @@ export async function extractRecipeData(input: string | { data: string; mimeType
 }
 
 export async function parseSingleIngredient(input: string) {
-  // SURGICAL FIX: Live production endpoint
-  const model = "gemini-2.5-flash";
-  
   const prompt = `Parse this single ingredient string into structured data.
   Provide:
   - name: string
@@ -168,9 +182,7 @@ export async function parseSingleIngredient(input: string) {
 
 
   try {
-    const response = await ai.models.generateContent({
-      model,
-      // CRITICAL FIX: Wrapped in Array
+    const response = await callGemini({
       contents: [{ role: 'user', parts: [{ text: prompt }, { text: input }] }],
       config: {
         responseMimeType: "application/json",
@@ -201,17 +213,12 @@ export async function parseSingleIngredient(input: string) {
 }
 
 export async function categorizeIngredient(name: string) {
-  // SURGICAL FIX: Live production endpoint
-  const model = "gemini-2.5-flash";
-  
   const prompt = `Categorize this item into one of these grocery departments: [Bakery, Produce, Protein, Dairy, Frozen, Pantry].
   If the item does not strictly belong to one of these food categories, or if you are simply unsure, you MUST return "Needs Sorting".
   Return ONLY the category name as a plain string.`;
-  
+
   try {
-    const response = await ai.models.generateContent({
-      model,
-      // CRITICAL FIX: Wrapped in Array
+    const response = await callGemini({
       contents: [{ role: 'user', parts: [{ text: prompt }, { text: name }] }]
     });
 
