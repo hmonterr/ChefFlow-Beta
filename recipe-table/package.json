@@ -1,0 +1,12 @@
+{
+  "name": "recipe-table",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Parse raw recipe text into a Cooking-for-Engineers style merged-cell table via the Anthropic API.",
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.ts",
+    "dev": "bun run --watch server.ts",
+    "test": "bun test"
+  }
+}
